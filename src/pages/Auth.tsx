@@ -7,6 +7,7 @@ import { sendLoginEmail } from '../utils/email';
 import { SEO } from '../components/SEO';
 import { useAuthStore } from '../store/authStore';
 import { Eye, EyeOff } from 'lucide-react';
+import { executeRecaptcha } from '../utils/recaptcha';
 
 export const Auth = () => {
   const [searchParams] = useSearchParams();
@@ -55,6 +56,12 @@ export const Auth = () => {
     setIsSubmitting(true);
     
     try {
+      // Execute Google reCAPTCHA Enterprise
+      const recaptchaToken = await executeRecaptcha(isLogin ? 'LOGIN' : 'SIGNUP');
+      if (recaptchaToken) {
+        console.log(`[reCAPTCHA] Token executed successfully for ${isLogin ? 'LOGIN' : 'SIGNUP'}:`, recaptchaToken);
+      }
+
       if (isLogin) {
         const cred = await signInWithEmailAndPassword(auth, email, password);
         
@@ -88,7 +95,9 @@ export const Auth = () => {
         }
 
         if (phone) {
-          await sendLoginEmail(userData?.name || cred.user.displayName || 'Customer', userEmail, phone);
+          sendLoginEmail(userData?.name || cred.user.displayName || 'Customer', userEmail, phone).catch(emailErr => {
+            console.error('[Email] Background sign-in email dispatch failed:', emailErr);
+          });
           const redirect = searchParams.get('redirect');
           if (redirect) {
             navigate(redirect.startsWith('/') ? redirect : `/${redirect}`);
@@ -158,6 +167,13 @@ export const Auth = () => {
   const handleGoogleAuth = async () => {
     setError('');
     setIsSubmitting(true);
+    
+    // Execute Google reCAPTCHA Enterprise
+    const recaptchaToken = await executeRecaptcha('GOOGLE_LOGIN');
+    if (recaptchaToken) {
+      console.log('[reCAPTCHA] Token executed successfully for GOOGLE_LOGIN:', recaptchaToken);
+    }
+
     const provider = new GoogleAuthProvider();
     provider.addScope('https://www.googleapis.com/auth/calendar');
     try {
@@ -205,7 +221,9 @@ export const Auth = () => {
       }
 
       if (isCompleted && phoneNum) {
-        await sendLoginEmail(cred.user.displayName || 'Customer', userEmail, phoneNum);
+        sendLoginEmail(cred.user.displayName || 'Customer', userEmail, phoneNum).catch(emailErr => {
+          console.error('[Email] Background Google sign-in email dispatch failed:', emailErr);
+        });
         
         const redirect = searchParams.get('redirect');
         if (redirect) {

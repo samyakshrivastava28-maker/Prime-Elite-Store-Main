@@ -5,6 +5,7 @@ import { db, handleFirestoreError, OperationType } from '../firebase';
 import { motion } from 'motion/react';
 import { Phone, User, Compass, LogOut } from 'lucide-react';
 import { sendSignupEmail } from '../utils/email';
+import { executeRecaptcha } from '../utils/recaptcha';
 
 export const PhoneNumberRequiredPage = () => {
   const { user, setUser, logout } = useAuthStore();
@@ -47,6 +48,12 @@ export const PhoneNumberRequiredPage = () => {
 
     setLoading(true);
     try {
+      // Execute Google reCAPTCHA Enterprise
+      const recaptchaToken = await executeRecaptcha('SIGNUP');
+      if (recaptchaToken) {
+        console.log('[reCAPTCHA] Verified human token successfully compiled on complete signup.');
+      }
+
       const userRef = doc(db, 'users', user.uid);
       const isAlreadySent = user.welcomeEmailSent === true;
 
@@ -62,54 +69,38 @@ export const PhoneNumberRequiredPage = () => {
         timeZoneName: 'short'
       });
 
-      // Use Google Calendar for signup date if access token is available
+      // Try Google Calendar creation completely asynchronously as a background task to prevent any blocking/stalls
       const accessToken = useAuthStore.getState().accessToken;
       if (accessToken) {
-        try {
-          const startISO = new Date().toISOString();
-          const endISO = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour duration
-          
-          const calendarRes = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/json'
+        const startISO = new Date().toISOString();
+        const endISO = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour duration
+        fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            summary: 'Prime Elite Store Membership Activated',
+            description: `Premium customer account at Prime Elite Store has been activated successfully under email: ${user.email}`,
+            start: {
+              dateTime: startISO,
+              timeZone: 'UTC'
             },
-            body: JSON.stringify({
-              summary: 'Prime Elite Store Membership Activated',
-              description: `Premium customer account at Prime Elite Store has been activated successfully under email: ${user.email}`,
-              start: {
-                dateTime: startISO,
-                timeZone: 'UTC'
-              },
-              end: {
-                dateTime: endISO,
-                timeZone: 'UTC'
-              }
-            })
-          });
-          
-          if (calendarRes.ok) {
-            const calendarData = await calendarRes.json();
-            console.log('Google Calendar registration event created successfully:', calendarData);
-            if (calendarData.start?.dateTime) {
-              signupDateString = new Date(calendarData.start.dateTime).toLocaleString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                timeZoneName: 'short'
-              });
+            end: {
+              dateTime: endISO,
+              timeZone: 'UTC'
             }
+          })
+        }).then(calendarRes => {
+          if (calendarRes.ok) {
+            console.log('Google Calendar registration event created in the background.');
           } else {
-            console.warn('Failed to create Google Calendar event, status:', calendarRes.status);
+            console.warn('Google Calendar registration event background log returned:', calendarRes.status);
           }
-        } catch (calendarErr) {
-          console.error('Error interfacing with Google Calendar API:', calendarErr);
-        }
+        }).catch(err => {
+          console.error('Failed to create background Google Calendar event:', err);
+        });
       }
 
       const updatedProfile = {
@@ -133,7 +124,9 @@ export const PhoneNumberRequiredPage = () => {
 
       // 2. Dispatch Welcome Email and Admin Notification Emails via EmailJS after Firestore save
       if (updatedProfile.profileCompleted === true && !isAlreadySent) {
-        await sendSignupEmail(name.trim(), user.email || '', phone, signupDateString);
+        sendSignupEmail(name.trim(), user.email || '', phone, signupDateString).catch(emailErr => {
+          console.error('[Email] Background signup email dispatch failed:', emailErr);
+        });
       }
 
       // 3. Clear storage keys if needed and update the global store state

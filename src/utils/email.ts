@@ -1,27 +1,26 @@
 import emailjsBrowser from '@emailjs/browser';
 
 // We will use our Express backend to dispatch emails securely to protect keys
-const BACKEND_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8080' : '');
+const BACKEND_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '' : 'https://prime-elite-store-main.onrender.com');
 
 export const sendSignupEmail = async (userName: string, userEmail: string, userPhone: string = '', signupDate: string = '') => {
-  if (BACKEND_URL) {
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/email/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userName, userEmail, userPhone, signupDate })
-      });
-      if (res.ok) {
-        const contentType = res.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          console.log('[Email] Signup emails sent via backend.');
-          return;
-        }
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/email/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userName, userEmail, userPhone, signupDate })
+    });
+    const contentType = res.headers.get('content-type');
+    if (res.ok && contentType && contentType.includes('application/json')) {
+      const data = await res.json();
+      if (data && data.success) {
+        console.log('[Email] Signup emails sent via backend.');
+        return;
       }
-      throw new Error('Backend did not return JSON');
-    } catch (error) {
-      console.warn('[Email] Backend signup dispatch unsuccessful, trying browser client-side fallback:', error);
     }
+    throw new Error(`Server status: ${res.status} or invalid JSON response`);
+  } catch (error) {
+    console.warn('[Email] Backend signup dispatch unsuccessful, trying browser client-side fallback:', error);
   }
 
   // Pure static client fallback
@@ -54,24 +53,23 @@ export const sendSignupEmail = async (userName: string, userEmail: string, userP
 };
 
 export const sendLoginEmail = async (userName: string, userEmail: string, userPhone: string = '') => {
-  if (BACKEND_URL) {
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/email/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userName, userEmail, userPhone })
-      });
-      if (res.ok) {
-        const contentType = res.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          console.log('[Email] Login emails sent via backend.');
-          return;
-        }
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/email/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userName, userEmail, userPhone })
+    });
+    const contentType = res.headers.get('content-type');
+    if (res.ok && contentType && contentType.includes('application/json')) {
+      const data = await res.json();
+      if (data && data.success) {
+        console.log('[Email] Login emails sent via backend.');
+        return;
       }
-      throw new Error('Backend did not return JSON');
-    } catch (error) {
-      console.warn('[Email] Backend login dispatch unsuccessful, trying browser client-side fallback:', error);
     }
+    throw new Error(`Server status: ${res.status} or invalid JSON response`);
+  } catch (error) {
+    console.warn('[Email] Backend login dispatch unsuccessful, trying browser client-side fallback:', error);
   }
 
   // Pure static client fallback
@@ -186,24 +184,23 @@ Subtotal: ₹${subtotal.toLocaleString()}`;
     admin_email: 'prime.elitestore02@gmail.com'
   };
 
-  if (BACKEND_URL) {
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/email/order`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'admin', templateParams })
-      });
-      if (res.ok) {
-        const contentType = res.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          console.log('[EmailJS] Admin notification email dispatched via backend.');
-          return;
-        }
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/email/order`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'admin', templateParams })
+    });
+    const contentType = res.headers.get('content-type');
+    if (res.ok && contentType && contentType.includes('application/json')) {
+      const data = await res.json();
+      if (data && data.success) {
+        console.log('[EmailJS] Admin notification email dispatched via backend.');
+        return;
       }
-      throw new Error('Backend did not return JSON');
-    } catch (error) {
-      console.warn('[Email] Backend admin order dispatch unsuccessful, trying browser client-side fallback:', error);
     }
+    throw new Error(`Server status: ${res.status} or invalid JSON response`);
+  } catch (error) {
+    console.warn('[Email] Backend admin order dispatch unsuccessful, trying browser client-side fallback:', error);
   }
 
   // Pure static client fallback
@@ -300,24 +297,23 @@ Subtotal: ₹${subtotal.toLocaleString()}`;
     admin_email: 'prime.elitestore02@gmail.com'
   };
 
-  if (BACKEND_URL) {
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/email/order`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'customer', templateParams })
-      });
-      if (res.ok) {
-        const contentType = res.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          console.log('[EmailJS] Customer order confirmed email dispatched via backend.');
-          return;
-        }
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/email/order`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'customer', templateParams })
+    });
+    const contentType = res.headers.get('content-type');
+    if (res.ok && contentType && contentType.includes('application/json')) {
+      const data = await res.json();
+      if (data && data.success) {
+        console.log('[EmailJS] Customer order confirmed email dispatched via backend.');
+        return;
       }
-      throw new Error('Backend did not return JSON');
-    } catch (error) {
-      console.warn('[Email] Backend customer order dispatch unsuccessful, trying browser client-side fallback:', error);
     }
+    throw new Error(`Server status: ${res.status} or invalid JSON response`);
+  } catch (error) {
+    console.warn('[Email] Backend customer order dispatch unsuccessful, trying browser client-side fallback:', error);
   }
 
   // Pure static client fallback
