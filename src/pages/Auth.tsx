@@ -69,13 +69,27 @@ export const Auth = () => {
         const isAdmin = userEmail === 'webhub2811@gmail.com' || userEmail === 'prime.elitestore02@gmail.com' || userEmail === 'primeelitestore02@gmail.com';
 
         let userDoc;
-        try {
-          userDoc = await getDoc(doc(db, 'users', cred.user.uid));
-        } catch (fErr) {
-          handleFirestoreError(fErr, OperationType.GET, `users/${cred.user.uid}`);
+        let fetchSuccess = false;
+        let attempts = 0;
+        let lastErr;
+        
+        while (!fetchSuccess && attempts < 3) {
+          try {
+            if (!navigator.onLine) throw new Error("Client is offline");
+            userDoc = await getDoc(doc(db, 'users', cred.user.uid));
+            fetchSuccess = true;
+          } catch (fErr: any) {
+            lastErr = fErr;
+            attempts++;
+            if (attempts < 3) await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempts - 1)));
+          }
+        }
+        
+        if (!fetchSuccess && lastErr) {
+          handleFirestoreError(lastErr, OperationType.GET, `users/${cred.user.uid}`);
         }
 
-        const userData = userDoc.exists() ? userDoc.data() : null;
+        const userData = userDoc?.exists() ? userDoc.data() : null;
         const phone = userData?.phone || userData?.phoneNumber || '';
 
         if (isAdmin) {
@@ -95,9 +109,12 @@ export const Auth = () => {
         }
 
         if (phone) {
-          sendLoginEmail(userData?.name || cred.user.displayName || 'Customer', userEmail, phone).catch(emailErr => {
-            console.error('[Email] Background sign-in email dispatch failed:', emailErr);
-          });
+          if (!sessionStorage.getItem('loginEmailSent')) {
+            sendLoginEmail(userData?.name || cred.user.displayName || 'Customer', userEmail, phone).catch(emailErr => {
+              console.error('[Email] Background sign-in email dispatch failed:', emailErr);
+            });
+            sessionStorage.setItem('loginEmailSent', 'true');
+          }
           const redirect = searchParams.get('redirect');
           if (redirect) {
             navigate(redirect.startsWith('/') ? redirect : `/${redirect}`);
@@ -172,6 +189,12 @@ export const Auth = () => {
           }
         } catch (_) {}
       }
+      
+      const isOfflineError = displayMessage.toLowerCase().includes('offline') || err?.toString().toLowerCase().includes('offline');
+      if (isOfflineError) {
+        displayMessage = "No internet connection. Please reconnect and try again.";
+      }
+      
       setError(displayMessage || `Authentication error occurred (${errorCode || 'unknown'}). Please verify details and try again.`);
     } finally {
       setIsSubmitting(false);
@@ -201,10 +224,24 @@ export const Auth = () => {
       const isAdmin = userEmail === 'webhub2811@gmail.com' || userEmail === 'prime.elitestore02@gmail.com' || userEmail === 'primeelitestore02@gmail.com';
 
       let userDoc;
-      try {
-        userDoc = await getDoc(doc(db, 'users', cred.user.uid));
-      } catch (fErr) {
-        handleFirestoreError(fErr, OperationType.GET, `users/${cred.user.uid}`);
+      let fetchSuccess = false;
+      let attempts = 0;
+      let lastErr;
+      
+      while (!fetchSuccess && attempts < 3) {
+        try {
+          if (!navigator.onLine) throw new Error("Client is offline");
+          userDoc = await getDoc(doc(db, 'users', cred.user.uid));
+          fetchSuccess = true;
+        } catch (fErr: any) {
+          lastErr = fErr;
+          attempts++;
+          if (attempts < 3) await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempts - 1)));
+        }
+      }
+      
+      if (!fetchSuccess && lastErr) {
+        handleFirestoreError(lastErr, OperationType.GET, `users/${cred.user.uid}`);
       }
       
       if (isAdmin) {
@@ -228,16 +265,19 @@ export const Auth = () => {
       let isCompleted = false;
       let phoneNum = '';
 
-      if (userDoc.exists()) {
+      if (userDoc?.exists()) {
         const userData = userDoc.data();
         phoneNum = userData?.phone || userData?.phoneNumber || '';
         isCompleted = userData?.profileCompleted || (!!phoneNum);
       }
 
       if (isCompleted && phoneNum) {
-        sendLoginEmail(cred.user.displayName || 'Customer', userEmail, phoneNum).catch(emailErr => {
-          console.error('[Email] Background Google sign-in email dispatch failed:', emailErr);
-        });
+        if (!sessionStorage.getItem('loginEmailSent')) {
+          sendLoginEmail(cred.user.displayName || 'Customer', userEmail, phoneNum).catch(emailErr => {
+            console.error('[Email] Background Google sign-in email dispatch failed:', emailErr);
+          });
+          sessionStorage.setItem('loginEmailSent', 'true');
+        }
         
         const redirect = searchParams.get('redirect');
         if (redirect) {
@@ -246,7 +286,7 @@ export const Auth = () => {
           navigate('/');
         }
       } else {
-        if (!userDoc.exists()) {
+        if (!userDoc?.exists()) {
           try {
             await setDoc(doc(db, 'users', cred.user.uid), {
               email: userEmail,
@@ -277,6 +317,12 @@ export const Auth = () => {
           }
         } catch (_) {}
       }
+      
+      const isOfflineError = displayMessage.toLowerCase().includes('offline') || err?.toString().toLowerCase().includes('offline');
+      if (isOfflineError) {
+        displayMessage = "No internet connection. Please reconnect and try again.";
+      }
+
       setError(displayMessage || 'Google Authentication failed.');
     } finally {
       setIsSubmitting(false);

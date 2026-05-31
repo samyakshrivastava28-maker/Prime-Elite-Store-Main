@@ -121,7 +121,7 @@ export const Layout = () => {
 
       <Navbar />
       <main className="flex-1 w-full relative z-10 flex flex-col">
-        {!loading && user && !isCompliant && isRestrictedRoute ? (
+        {!loading && user && !isCompliant ? (
              <PhoneNumberRequiredPage />
         ) : (
              <Outlet />

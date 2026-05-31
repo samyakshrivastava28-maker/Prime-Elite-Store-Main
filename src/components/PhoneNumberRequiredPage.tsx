@@ -139,6 +139,9 @@ export const PhoneNumberRequiredPage = () => {
         isCompliant: true,
         loading: false
       });
+      
+      // Optional: Since React Router is used, we can do a location change if helpful, but state does it.
+      window.location.href = '/products';
 
     } catch (err: any) {
       console.error("Profile completion failed:", err);

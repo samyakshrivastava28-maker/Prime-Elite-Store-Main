@@ -43,10 +43,14 @@ export const sendSignupEmail = async (userName: string, userEmail: string, userP
       signup_date: signupDate || new Date().toISOString(),
       admin_email: 'prime.elitestore02@gmail.com'
     };
+    
+    console.log('[Email] Sending Signup emails with payload:', params);
 
     await emailjsBrowser.send(serviceId, templateUser, params, pubKey);
+    console.log('[Welcome Email Sent]');
+    
     await emailjsBrowser.send(serviceId, templateAdmin, params, pubKey);
-    console.log('[Email] Signup emails dispatched directly from browser.');
+    console.log('[Admin Signup Email Sent]');
   } catch (err) {
     console.error('[Email] Direct browser signup dispatch failed:', err);
   }
@@ -90,10 +94,14 @@ export const sendLoginEmail = async (userName: string, userEmail: string, userPh
       user_phone_number: userPhone,
       admin_email: 'prime.elitestore02@gmail.com'
     };
+    
+    console.log('[Email] Sending Login emails with payload:', params);
 
     await emailjsBrowser.send(serviceId, templateUser, params, pubKey);
+    console.log('[Welcome Back Email Sent]');
+    
     await emailjsBrowser.send(serviceId, templateAdmin, params, pubKey);
-    console.log('[Email] Login emails dispatched directly from browser.');
+    console.log('[Admin Returning User Email Sent]');
   } catch (err) {
     console.error('[Email] Direct browser login dispatch failed:', err);
   }

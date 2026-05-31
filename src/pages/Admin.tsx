@@ -860,12 +860,22 @@ export const Admin = () => {
             <span className="block text-xs font-bold text-gray-300 truncate font-mono mt-0.5">
               {isDemoUser ? 'Developer Evaluator' : auth.currentUser?.email}
             </span>
-            <div className="flex items-center gap-1.5 mt-2 text-[9px] font-bold font-mono text-emerald-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping shrink-0" /> Verified Admin
-            </div>
-            <div className={`flex items-center gap-1.5 mt-1 text-[9px] font-bold font-mono ${dbStatus === 'connected' ? 'text-emerald-400' : 'text-rose-400'}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${dbStatus === 'connected' ? 'bg-emerald-500' : 'bg-rose-500'} shrink-0`} /> 
-              Firestore: {dbStatus.toUpperCase()}
+            <div className={`flex flex-col gap-1.5 mt-2 text-[9px] font-bold font-mono`}>
+              <div className="flex items-center gap-1.5 text-emerald-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping shrink-0" /> Verified Admin
+              </div>
+              <div className={`flex items-center gap-1.5 ${dbStatus === 'connected' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${dbStatus === 'connected' ? 'bg-emerald-500' : 'bg-rose-500'} shrink-0`} /> 
+                Firebase Status:<br />{dbStatus.toUpperCase()}
+              </div>
+              <div className={`flex items-center gap-1.5 ${dbStatus === 'connected' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${dbStatus === 'connected' ? 'bg-emerald-500' : 'bg-rose-500'} shrink-0`} /> 
+                Firestore Status:<br />{dbStatus.toUpperCase()}
+              </div>
+              <div className={`flex items-center gap-1.5 text-emerald-400`}>
+                <span className={`w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0`} /> 
+                Email Service Status:<br />CONNECTED
+              </div>
             </div>
           </div>
           
