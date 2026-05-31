@@ -150,6 +150,12 @@ export const Auth = () => {
       let displayMessage = err?.message || '';
       if (err?.code === 'auth/operation-not-allowed' || displayMessage.includes('auth/operation-not-allowed') || displayMessage.includes('operation-not-allowed')) {
         displayMessage = "Email/Password sign-up is not enabled in your Firebase project yet.\n\nTo enable manual registration:\n1. Open your Firebase Console\n2. Go to 'Authentication' > 'Sign-in method'\n3. Click 'Add new provider'\n4. Select 'Email/Password', toggle 'Enable', and click 'Save'.";
+      } else if (err?.code === 'auth/invalid-credential' || displayMessage.includes('auth/invalid-credential') || displayMessage.includes('invalid-credential')) {
+        if (isLogin) {
+          displayMessage = "Invalid email or password. Please verify your credentials and try again. (Also confirm that the 'Email/Password' provider is enabled under Authentication > Sign-in method in your Firebase Console).";
+        } else {
+          displayMessage = "Manual Registration (Sign-up) is disabled or not allowed by your Firebase project configurations.\n\nTo resolve this and allow manual accounts registration:\n1. Go to the Firebase Console (console.firebase.google.com)\n2. Navigate to 'Authentication' > 'Sign-in method'\n3. Click 'Add new provider' and select 'Email/Password'\n4. Enable both 'Email/Password' and 'Email link (passwordless sign-in)', click 'Save'.\n5. If reCAPTCHA Enterprise protection or App Check is active under reCAPTCHA section, ensure your domains list includes your store's domains.";
+        }
       } else {
         try {
           if (displayMessage.startsWith('{')) {
