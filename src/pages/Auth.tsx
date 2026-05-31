@@ -139,12 +139,16 @@ export const Auth = () => {
     } catch (err: any) {
       console.error("Auth process error:", err);
       let displayMessage = err?.message || '';
-      try {
-        if (displayMessage.startsWith('{')) {
-          const parsed = JSON.parse(displayMessage);
-          displayMessage = parsed.error || 'Firestore connection issue.';
-        }
-      } catch (_) {}
+      if (err?.code === 'auth/operation-not-allowed' || displayMessage.includes('auth/operation-not-allowed') || displayMessage.includes('operation-not-allowed')) {
+        displayMessage = "Email/Password sign-up is not enabled in your Firebase project yet.\n\nTo enable manual registration:\n1. Open your Firebase Console\n2. Go to 'Authentication' > 'Sign-in method'\n3. Click 'Add new provider'\n4. Select 'Email/Password', toggle 'Enable', and click 'Save'.";
+      } else {
+        try {
+          if (displayMessage.startsWith('{')) {
+            const parsed = JSON.parse(displayMessage);
+            displayMessage = parsed.error || 'Firestore connection issue.';
+          }
+        } catch (_) {}
+      }
       setError(displayMessage || 'Authentication failed. Please check your credentials.');
     } finally {
       setIsSubmitting(false);
@@ -365,7 +369,7 @@ export const Auth = () => {
           </div>
           
           {error && (
-            <div className="bg-red-950/40 border border-red-500/30 text-red-400 text-xs py-3 px-4 rounded-lg text-center font-mono">
+            <div className="bg-red-950/40 border border-red-500/30 text-red-400 text-xs py-4 px-5 rounded-lg text-left font-mono whitespace-pre-line leading-relaxed">
               {error}
             </div>
           )}
