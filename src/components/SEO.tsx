@@ -43,6 +43,9 @@ export function SEO({
       <meta name="description" content={description} />
       <meta name="keywords" content={keywords} />
       <link rel="canonical" href={url} />
+      <link rel="icon" type="image/webp" href="https://res.cloudinary.com/dxegdaylf/image/upload/v1779965351/prime_elite_store_mrgmmc.webp" />
+      <link rel="shortcut icon" type="image/webp" href="https://res.cloudinary.com/dxegdaylf/image/upload/v1779965351/prime_elite_store_mrgmmc.webp" />
+      <link rel="apple-touch-icon" href="https://res.cloudinary.com/dxegdaylf/image/upload/v1779965351/prime_elite_store_mrgmmc.webp" />
 
       {/* Open Graph Tags */}
       <meta property="og:title" content={title} />
