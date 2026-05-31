@@ -3,13 +3,13 @@ import emailjsBrowser from '@emailjs/browser';
 // We will use our Express backend to dispatch emails securely to protect keys
 const BACKEND_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8080' : '');
 
-export const sendSignupEmail = async (userName: string, userEmail: string, userPhone: string = '') => {
+export const sendSignupEmail = async (userName: string, userEmail: string, userPhone: string = '', signupDate: string = '') => {
   if (BACKEND_URL) {
     try {
       const res = await fetch(`${BACKEND_URL}/api/email/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userName, userEmail, userPhone })
+        body: JSON.stringify({ userName, userEmail, userPhone, signupDate })
       });
       if (res.ok) {
         const contentType = res.headers.get('content-type');
@@ -39,7 +39,9 @@ export const sendSignupEmail = async (userName: string, userEmail: string, userP
     const params = {
       user_name: userName,
       user_email: userEmail,
+      user_phone: userPhone,
       user_phone_number: userPhone,
+      signup_date: signupDate || new Date().toISOString(),
       admin_email: 'prime.elitestore02@gmail.com'
     };
 

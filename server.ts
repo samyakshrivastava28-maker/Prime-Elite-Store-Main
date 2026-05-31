@@ -20,7 +20,7 @@ app.get("/api/health", (req, res) => {
 
 // EmailJS Route for Signup Emails
 app.post("/api/email/signup", async (req, res) => {
-  const { userName, userEmail, userPhone } = req.body;
+  const { userName, userEmail, userPhone, signupDate } = req.body;
   
   const serviceId = process.env.EMAILJS_SERVICE_ID_1 || 'service_xavwsdd';
   const templateUser = process.env.EMAILJS_TEMPLATE_ID_SIGNUP_USER_1 || 'template_bnv795b';
@@ -31,7 +31,9 @@ app.post("/api/email/signup", async (req, res) => {
   const templateParams = {
     user_name: userName,
     user_email: userEmail,
+    user_phone: userPhone,
     user_phone_number: userPhone,
+    signup_date: signupDate || new Date().toISOString(),
     admin_email: 'prime.elitestore02@gmail.com'
   };
 

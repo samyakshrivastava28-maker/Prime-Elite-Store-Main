@@ -29,7 +29,7 @@ try {
 
 export const db = initializeFirestore(app, {
   localCache: cacheImplementation
-}, firebaseConfig.firestoreDatabaseId);
+}, (firebaseConfig as any).firestoreDatabaseId);
 
 // 14: Monitor and dispatch custom alerts for quota exceeds or database failures
 export const checkQuotaExceeded = (err: any): boolean => {

@@ -3,8 +3,9 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswor
 import { auth, db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { sendSignupEmail, sendLoginEmail } from '../utils/email';
+import { sendLoginEmail } from '../utils/email';
 import { SEO } from '../components/SEO';
+import { useAuthStore } from '../store/authStore';
 
 export const Auth = () => {
   const [searchParams] = useSearchParams();
@@ -142,8 +143,13 @@ export const Auth = () => {
     setError('');
     setIsSubmitting(true);
     const provider = new GoogleAuthProvider();
+    provider.addScope('https://www.googleapis.com/auth/calendar');
     try {
       const cred = await signInWithPopup(auth, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(cred);
+      if (credential?.accessToken) {
+        useAuthStore.getState().setAccessToken(credential.accessToken);
+      }
       
       const userEmail = (cred.user.email || '').toLowerCase().trim();
       const isAdmin = userEmail === 'webhub2811@gmail.com' || userEmail === 'prime.elitestore02@gmail.com' || userEmail === 'primeelitestore02@gmail.com';
