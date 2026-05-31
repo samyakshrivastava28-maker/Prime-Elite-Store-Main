@@ -34,27 +34,21 @@ export default function App() {
           <Route index element={<Home />} />
           
           <Route path="products" element={
-            <ProtectedRoute>
-              <Suspense fallback={<PremiumLoadingFallback />}>
-                <Products />
-              </Suspense>
-            </ProtectedRoute>
+            <Suspense fallback={<PremiumLoadingFallback />}>
+              <Products />
+            </Suspense>
           } />
           
           <Route path="products/:id" element={
-            <ProtectedRoute>
-              <Suspense fallback={<PremiumLoadingFallback />}>
-                <ProductDetails />
-              </Suspense>
-            </ProtectedRoute>
+            <Suspense fallback={<PremiumLoadingFallback />}>
+              <ProductDetails />
+            </Suspense>
           } />
           
           <Route path="checkout" element={
-            <ProtectedRoute>
               <Suspense fallback={<PremiumLoadingFallback />}>
                 <Checkout />
               </Suspense>
-            </ProtectedRoute>
           } />
           
           <Route path="contact" element={
@@ -76,11 +70,9 @@ export default function App() {
           } />
           
           <Route path="admin" element={
-            <AdminRoute>
-              <Suspense fallback={<PremiumLoadingFallback />}>
-                <Admin />
-              </Suspense>
-            </AdminRoute>
+            <Suspense fallback={<PremiumLoadingFallback />}>
+              <Admin />
+            </Suspense>
           } />
         </Route>
       </Routes>

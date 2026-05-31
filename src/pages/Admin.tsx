@@ -137,13 +137,13 @@ export const Admin = () => {
         if (isOwnerEmail || isDemoUser) {
           try {
             const userDocRef = doc(db, 'users', firebaseUser.uid);
-            // Write core administrative metadata in DB
-            await setDoc(userDocRef, {
+            // Write core administrative metadata in DB asynchronously
+            setDoc(userDocRef, {
               email: firebaseUser.email,
               name: firebaseUser.displayName || 'Luxury Administrator',
               role: 'admin',
               updatedAt: new Date().toISOString()
-            }, { merge: true });
+            }, { merge: true }).catch(e => console.error("Admin metadata sync error:", e));
             
             setIsAdminAuthenticated(true);
           } catch (e) {
@@ -638,7 +638,7 @@ export const Admin = () => {
 
 
   // RENDER SECURITY SCREEN
-  if (!isAdminAuthenticated && !authLoading) {
+  if (!isAdminAuthenticated) {
     return (
       <div className="pt-32 min-h-screen pb-24 bg-gradient-to-b from-[#0a0a0a] to-[#010101] flex items-center justify-center px-4">
         <motion.div 
@@ -734,16 +734,7 @@ export const Admin = () => {
     );
   }
 
-  // LOADING SHIMMER
-  if (authLoading) {
-    return (
-      <div className="pt-32 min-h-screen pb-24 bg-black flex flex-col justify-center items-center gap-4 text-white">
-        <RefreshCw size={40} className="animate-spin text-gold-500" />
-        <p className="text-xs uppercase tracking-widest font-mono text-[#555]">Verifying operational clearances...</p>
-      </div>
-    );
-  }
-
+  // LOADING SHIMMER REMOVED FOR SPEED
   // SECURE MASTER DASHBOARD VIEW
   return (
     <div className="min-h-screen bg-black text-white flex flex-col lg:flex-row relative">

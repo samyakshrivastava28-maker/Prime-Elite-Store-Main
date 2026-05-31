@@ -64,8 +64,8 @@ export const Navbar = () => {
           <div className="w-10 h-10 rounded-full overflow-hidden border border-gold-500/30 group-hover:border-gold-500 transition-colors">
             <img src={BRAND.logoUrl} alt="Logo" className="w-full h-full object-cover" />
           </div>
-          <span className="font-display font-bold text-xl tracking-wider text-white hidden sm:block">
-            PRIME <span className="gold-gradient-text text-transparent">ELITE</span>
+          <span className="font-display font-bold text-lg sm:text-xl tracking-wider text-white">
+            PRIME <span className="gold-gradient-text">ELITE</span> STORE
           </span>
         </Link>
 

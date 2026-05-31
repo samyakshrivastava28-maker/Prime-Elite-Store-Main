@@ -148,23 +148,31 @@ export const Auth = () => {
     } catch (err: any) {
       console.error("Auth process error:", err);
       let displayMessage = err?.message || '';
-      if (err?.code === 'auth/operation-not-allowed' || displayMessage.includes('auth/operation-not-allowed') || displayMessage.includes('operation-not-allowed')) {
-        displayMessage = "Email/Password sign-up is not enabled in your Firebase project yet.\n\nTo enable manual registration:\n1. Open your Firebase Console\n2. Go to 'Authentication' > 'Sign-in method'\n3. Click 'Add new provider'\n4. Select 'Email/Password', toggle 'Enable', and click 'Save'.";
-      } else if (err?.code === 'auth/invalid-credential' || displayMessage.includes('auth/invalid-credential') || displayMessage.includes('invalid-credential')) {
+      const errorCode = err?.code || '';
+      
+      if (errorCode === 'auth/operation-not-allowed') {
+        displayMessage = "Email/Password sign-up is not enabled in your Firebase project yet.\n\nTo enable manual registration:\n1. Open your Firebase Console (console.firebase.google.com)\n2. Navigate to 'Authentication' > 'Sign-in method'\n3. Click 'Add new provider' and select 'Email/Password'\n4. Toggle 'Enable' and click 'Save'.";
+      } else if (errorCode === 'auth/invalid-credential' || errorCode === 'auth/user-not-found' || errorCode === 'auth/wrong-password' || displayMessage.includes('invalid-credential')) {
         if (isLogin) {
-          displayMessage = "Invalid email or password. Please verify your credentials and try again. (Also confirm that the 'Email/Password' provider is enabled under Authentication > Sign-in method in your Firebase Console).";
+          displayMessage = "Incorrect email or password.\n\n• If you haven't created an account yet, please click the 'Create Account (Signup)' tab above first to register!\n• If you've already registered, please double-check your credentials or use the 'Forgot Password?' link below.";
         } else {
-          displayMessage = "Manual Registration (Sign-up) is disabled or not allowed by your Firebase project configurations.\n\nTo resolve this and allow manual accounts registration:\n1. Go to the Firebase Console (console.firebase.google.com)\n2. Navigate to 'Authentication' > 'Sign-in method'\n3. Click 'Add new provider' and select 'Email/Password'\n4. Enable both 'Email/Password' and 'Email link (passwordless sign-in)', click 'Save'.\n5. If reCAPTCHA Enterprise protection or App Check is active under reCAPTCHA section, ensure your domains list includes your store's domains.";
+          displayMessage = "Manual registration (Sign-up) failed or was not accepted.\n\n• If you already registered this email, please click the 'Sign In (Login)' tab above to sign in.\n• Make sure you have entered a valid email format and a secure password.\n• If security features like reCAPTCHA Enterprise or Google App Check are active in your Firebase project, verify that your client environment domain is configured correctly.";
         }
+      } else if (errorCode === 'auth/email-already-in-use') {
+        displayMessage = "This email is already registered.\n\nPlease choose the 'Sign In (Login)' tab above, or reset your password if you forgot it.";
+      } else if (errorCode === 'auth/weak-password') {
+        displayMessage = "The password is too weak. It must be at least 6 characters long.";
+      } else if (errorCode === 'auth/invalid-email') {
+        displayMessage = "The email address format is invalid. Please enter a valid email address.";
       } else {
         try {
           if (displayMessage.startsWith('{')) {
             const parsed = JSON.parse(displayMessage);
-            displayMessage = parsed.error || 'Firestore connection issue.';
+            displayMessage = parsed.error || 'Connection or Firestore issue.';
           }
         } catch (_) {}
       }
-      setError(displayMessage || 'Authentication failed. Please check your credentials.');
+      setError(displayMessage || `Authentication error occurred (${errorCode || 'unknown'}). Please verify details and try again.`);
     } finally {
       setIsSubmitting(false);
     }

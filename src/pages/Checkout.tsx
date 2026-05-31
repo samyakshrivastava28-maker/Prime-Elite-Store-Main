@@ -35,6 +35,12 @@ export const Checkout = () => {
 
   const handleOrder = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) {
+      alert("Please create an account or log in to place your order.");
+      navigate('/login?redirect=checkout&mode=signup');
+      return;
+    }
+
     if (totalQuantity < 1) {
       setError('Your cart is empty.');
       return;

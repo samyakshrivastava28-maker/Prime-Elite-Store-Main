@@ -35,13 +35,10 @@ export const Products = () => {
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
-  // Authentication guard
+  // Authentication guard removed of public browsing capability
   useEffect(() => {
-    if (!authLoading && !user) {
-      alert("You can't see our collection without signup. Please create an account to view our premium items.");
-      navigate('/login?redirect=products&mode=signup');
-    }
-  }, [user, authLoading, navigate]);
+    // Public visitors can freely evaluate catalog items
+  }, []);
 
   // Helper for skeletons
   const SkeletonCard = () => (
@@ -230,13 +227,6 @@ export const Products = () => {
     );
   });
 
-  if (authLoading || !user) {
-    return (
-      <div className="pt-32 min-h-screen flex justify-center items-center">
-        <div className="animate-spin w-8 h-8 border-t-2 border-gold-500 rounded-full"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="pt-24 min-h-screen pb-20">

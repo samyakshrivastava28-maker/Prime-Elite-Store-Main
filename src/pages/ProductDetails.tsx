@@ -41,13 +41,10 @@ export const ProductDetails = () => {
     return () => unsubscribe();
   }, [initializeProductsListener]);
 
-  // Authentication guard
+  // Authentication guard removed for public evaluation
   useEffect(() => {
-    if (!authLoading && !user) {
-      alert("You can't see our collection without signup. Please create an account to view our premium items.");
-      navigate(`/login?redirect=products/${id}&mode=signup`);
-    }
-  }, [user, authLoading, navigate, id]);
+    // Enable anyone to view products
+  }, []);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -102,7 +99,7 @@ export const ProductDetails = () => {
     fetchProduct();
   }, [id, products]);
 
-  if (authLoading || !user || loading) {
+  if (loading) {
     return (
       <div className="pt-32 min-h-screen flex justify-center items-center">
         <div className="animate-spin w-8 h-8 border-t-2 border-gold-500 rounded-full"></div>
