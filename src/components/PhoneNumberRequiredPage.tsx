@@ -142,8 +142,14 @@ export const PhoneNumberRequiredPage = () => {
         loading: false
       });
       
-      // Navigate to products layout instantly
-      window.location.href = '/products';
+      // Navigate to correct destination (retaining cart or going to collection)
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirect = urlParams.get('redirect');
+      if (redirect) {
+        window.location.href = redirect.startsWith('/') ? redirect : `/${redirect}`;
+      } else {
+        window.location.href = '/products';
+      }
 
     } catch (err: any) {
       console.error("Profile completion failed:", err);

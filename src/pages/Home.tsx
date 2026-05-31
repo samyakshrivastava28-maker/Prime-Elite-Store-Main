@@ -12,7 +12,7 @@ export const Home = () => {
     <div className="w-full">
       <SEO />
       {/* Cinematic Hero */}
-      <section className="relative h-screen min-h-[600px] flex items-center justify-center overflow-hidden">
+      <section className="relative h-screen min-h-[600px] flex items-center justify-center overflow-hidden pt-28 pb-12 md:pt-32">
         <div className="absolute inset-0 flex items-center justify-center z-0 p-4 md:p-0">
           <div className="w-full max-w-[450px] aspect-square md:max-w-none md:aspect-auto md:w-full md:h-full overflow-hidden rounded-2xl md:rounded-none border border-white/5 md:border-none shadow-[0_0_50px_rgba(212,175,55,0.05)] md:shadow-none bg-black/40">
             <LazyVideo
@@ -26,7 +26,7 @@ export const Home = () => {
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-black z-1 pointer-events-none" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(212,175,55,0.15)_0%,rgba(0,0,0,0.85)_100%)] z-1 pointer-events-none" />
 
-        <div className="relative z-10 text-center max-w-4xl mx-auto px-6 flex flex-col items-center mt-20 md:mt-0">
+        <div className="relative z-10 text-center max-w-4xl mx-auto px-6 flex flex-col items-center pt-20 sm:pt-24 md:pt-28">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}

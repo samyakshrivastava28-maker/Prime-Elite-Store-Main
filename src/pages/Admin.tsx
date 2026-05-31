@@ -291,6 +291,55 @@ export const Admin = () => {
     };
   }, [products]);
 
+  const chartData = useMemo(() => {
+    const activeOrders = orders.filter(o => o.status !== 'cancelled');
+    // Get last 7 orders with valid pricing to render on dynamic timeline
+    const recentOrders = [...activeOrders]
+      .sort((a, b) => new Date(a.createdAt || '').getTime() - new Date(b.createdAt || '').getTime())
+      .slice(-7);
+    
+    if (recentOrders.length === 0) {
+      return Array.from({ length: 7 }).map((_, i) => ({
+        label: `T-${6-i}d`,
+        revenue: 0,
+        count: 0
+      }));
+    }
+
+    return recentOrders.map((o, idx) => {
+      const date = o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : `Order #${idx+1}`;
+      return {
+        label: date,
+        revenue: o.totalAmount || 0,
+        count: o.cartItems?.reduce((s: number, item: any) => s + (item.quantity || 0), 0) || 1
+      };
+    });
+  }, [orders]);
+
+  const svgChart = useMemo(() => {
+    const width = 600;
+    const height = 220;
+    const paddingX = 40;
+    const paddingY = 30;
+
+    const maxRevenue = Math.max(...chartData.map(d => d.revenue), 100000);
+    const minRevenue = 0;
+
+    const points = chartData.map((d, i) => {
+      const x = paddingX + (i * (width - 2 * paddingX)) / (chartData.length - 1);
+      // Invert Y because SVG coordinates start from top-left (0,0)
+      const y = height - paddingY - ((d.revenue - minRevenue) * (height - 2 * paddingY)) / (maxRevenue - minRevenue);
+      return { x, y, label: d.label, val: d.revenue };
+    });
+
+    const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+    const areaPath = points.length > 0 
+      ? `${linePath} L ${points[points.length - 1].x} ${height - paddingY} L ${points[0].x} ${height - paddingY} Z`
+      : '';
+
+    return { width, height, paddingX, paddingY, points, linePath, areaPath, maxRevenue };
+  }, [chartData]);
+
   // Seeding tool
   const handleSeedProducts = async () => {
     if (!confirm('Are you sure you want to restore original premium mock products? This will clean up the existing Firebase catalog first.')) return;
@@ -433,11 +482,17 @@ export const Admin = () => {
     const filteredImages = imageUrls.map(url => url.trim()).filter(Boolean);
     const filteredVideos = videoUrls.map(url => url.trim()).filter(Boolean);
     
-    const filteredVariants = variants.map(v => ({
-      color: v.color.trim(),
-      image: v.image.trim(),
-      video: v.video?.trim() || ''
-    })).filter(v => v.color && v.image);
+    const filteredVariants = variants.map(v => {
+      const out: any = {
+        color: v.color.trim(),
+        image: v.image.trim(),
+      };
+      if (v.video?.trim()) out.video = v.video.trim();
+      if (v.price !== undefined && v.price !== null && !isNaN(Number(v.price)) && Number(v.price) > 0) out.price = Number(v.price);
+      if (v.oldPrice !== undefined && v.oldPrice !== null && !isNaN(Number(v.oldPrice)) && Number(v.oldPrice) > 0) out.oldPrice = Number(v.oldPrice);
+      if (v.stock !== undefined && v.stock !== null && !isNaN(Number(v.stock))) out.stock = Number(v.stock);
+      return out;
+    }).filter(v => v.color && v.image);
 
     const filteredSpecs = specifications.map(s => ({
       key: s.key.trim(),
@@ -596,9 +651,14 @@ export const Admin = () => {
   const removeVariantInput = (index: number) => {
     setVariants(variants.filter((_, i) => i !== index));
   };
-  const handleVariantChange = (index: number, field: keyof Variant, value: string) => {
+  const handleVariantChange = (index: number, field: keyof Variant, value: any) => {
     const updated = [...variants];
-    updated[index] = { ...updated[index], [field]: value };
+    if (field === 'price' || field === 'oldPrice' || field === 'stock') {
+      const parsed = value === '' ? undefined : Number(value);
+      updated[index] = { ...updated[index], [field]: parsed };
+    } else {
+      updated[index] = { ...updated[index], [field]: value };
+    }
     setVariants(updated);
   };
 
@@ -1033,6 +1093,161 @@ export const Admin = () => {
                 <div className="text-3xl font-display font-black text-white">₹{statistics.averagePrice.toLocaleString()}</div>
                 <div className="text-[9px] text-zinc-500 mt-2 font-mono flex items-center gap-1">
                   <TrendingUp size={10} className="text-gold-500" /> Active average margin
+                </div>
+              </div>
+            </div>
+
+            {/* Visual Analytics & Sales Volume Trend Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              {/* Sales Revenue Trend Chart */}
+              <div className="lg:col-span-2 bg-zinc-950 p-6 rounded-2xl border border-white/5 space-y-4">
+                <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-gold-500 font-mono flex items-center gap-1.5">
+                      <TrendingUp size={14} /> Revenue Acquisition Timeline
+                    </h3>
+                    <p className="text-[10px] text-zinc-500 font-sans mt-0.5">Time-series audit of the last 7 luxury orders placed through checkout.</p>
+                  </div>
+                  <div className="flex bg-black/40 px-3 py-1 border border-white/5 rounded-lg text-[10px] font-mono text-zinc-400 gap-4">
+                    <span>Stroke: <strong className="text-gold-500 font-bold">Revenue (₹)</strong></span>
+                  </div>
+                </div>
+                
+                {/* SVG Area Line Chart */}
+                <div className="relative h-[240px] w-full bg-black/20 rounded-xl border border-white/5 flex items-center justify-center p-2">
+                  {orders.filter(o => o.status !== 'cancelled').length === 0 ? (
+                    <div className="text-center text-xs text-zinc-650 flex flex-col items-center gap-2">
+                      <ShieldAlert size={28} className="text-zinc-700 animate-pulse" />
+                      No historic transaction records registered yet. Place mock orders to activate timeline analytics graphs.
+                    </div>
+                  ) : (
+                    <svg viewBox={`0 0 ${svgChart.width} ${svgChart.height}`} className="w-full h-full overflow-visible select-none">
+                      <defs>
+                        <linearGradient id="chartAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#d4af37" stopOpacity="0.25" />
+                          <stop offset="100%" stopColor="#d4af37" stopOpacity="0.00" />
+                        </linearGradient>
+                      </defs>
+                      
+                      {/* Grid Lines */}
+                      {Array.from({ length: 4 }).map((_, i) => {
+                        const yVal = svgChart.paddingY + (i * (svgChart.height - 2 * svgChart.paddingY)) / 3;
+                        return (
+                          <line 
+                            key={i} 
+                            x1={svgChart.paddingX} 
+                            y1={yVal} 
+                            x2={svgChart.width - svgChart.paddingX} 
+                            y2={yVal} 
+                            stroke="rgba(255,255,255,0.03)" 
+                            strokeWidth="1" 
+                          />
+                        );
+                      })}
+
+                      {/* Area Path */}
+                      <path d={svgChart.areaPath} fill="url(#chartAreaGrad)" />
+                      
+                      {/* Line Path */}
+                      <path d={svgChart.linePath} fill="none" stroke="#d4af37" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                      
+                      {/* Data Dots & Ticks */}
+                      {svgChart.points.map((p, idx) => (
+                        <g key={idx} className="group/dot">
+                          <circle 
+                            cx={p.x} 
+                            cy={p.y} 
+                            r="4.5" 
+                            fill="#000" 
+                            stroke="#d4af37" 
+                            strokeWidth="2.5" 
+                            className="cursor-pointer hover:r-6 transition-all"
+                          />
+                          <circle 
+                            cx={p.x} 
+                            cy={p.y} 
+                            r="12" 
+                            fill="#d4af37" 
+                            fillOpacity="0.15" 
+                            className="opacity-0 group-hover/dot:opacity-100 transition-opacity pointer-events-none"
+                          />
+                          
+                          {/* Label X values */}
+                          <text 
+                            x={p.x} 
+                            y={svgChart.height - 8} 
+                            fill="rgba(255,255,255,0.4)" 
+                            fontSize="8" 
+                            fontFamily="monospace" 
+                            textAnchor="middle"
+                          >
+                            {p.label}
+                          </text>
+                          
+                          {/* Hover Price Annotation */}
+                          <g className="opacity-0 hover:opacity-100 group-hover/dot:opacity-100 transition-opacity duration-200 pointer-events-none">
+                            <rect 
+                              x={p.x - 55} 
+                              y={p.y - 32} 
+                              width="110" 
+                              height="22" 
+                              rx="4" 
+                              fill="#09090b" 
+                              stroke="#d4af37" 
+                              strokeWidth="1" 
+                            />
+                            <text 
+                              x={p.x} 
+                              y={p.y - 18} 
+                              fill="#fff" 
+                              fontSize="8" 
+                              fontWeight="bold"
+                              fontFamily="monospace" 
+                              textAnchor="middle"
+                            >
+                              ₹{p.val.toLocaleString()}
+                            </text>
+                          </g>
+                        </g>
+                      ))}
+                    </svg>
+                  )}
+                </div>
+              </div>
+
+              {/* Order Status Distribution Bar Chart */}
+              <div className="lg:col-span-1 bg-zinc-950 p-6 rounded-2xl border border-white/5 space-y-4">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-gold-500 font-mono flex items-center gap-1.5 border-b border-white/5 pb-4">
+                  <Activity size={14} /> Pipeline Velocity Status
+                </h3>
+                <div className="space-y-4 pt-1">
+                  {['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'].map(status => {
+                    const count = orders.filter(o => o.status === status).length;
+                    const maxCount = Math.max(orders.length, 1);
+                    const percentage = Math.round((count / maxCount) * 100);
+                    const statusColors: Record<string, string> = {
+                      pending: 'bg-amber-500',
+                      confirmed: 'bg-indigo-500',
+                      shipped: 'bg-blue-500',
+                      delivered: 'bg-emerald-500',
+                      cancelled: 'bg-rose-500'
+                    };
+                    return (
+                      <div key={status} className="space-y-1.5">
+                        <div className="flex justify-between items-center text-[11px] font-mono whitespace-nowrap">
+                          <span className="capitalize text-zinc-400 flex items-center gap-1.5">
+                            <span className={`w-1.5 h-1.5 rounded-full ${statusColors[status] || 'bg-white'}`} />
+                            {status} Orders
+                          </span>
+                          <span className="text-white font-bold">{count} ({percentage}%)</span>
+                        </div>
+                        <div className="w-full bg-black/60 h-1.5 rounded-full overflow-hidden border border-white/5">
+                          <div className={`h-full rounded-full ${statusColors[status] || 'bg-gold-500'}`} style={{ width: `${percentage}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -2001,6 +2216,39 @@ export const Admin = () => {
                                 placeholder="Pasted image link" 
                                 value={v.image}
                                 onChange={e => handleVariantChange(index, 'image', e.target.value)}
+                                className="w-full bg-black border border-white/10 p-2.5 rounded-lg text-xs text-white"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                              <label className="block text-[8px] uppercase text-zinc-550 mb-1 font-mono">Variant price (₹, Optional)</label>
+                              <input 
+                                type="number" 
+                                placeholder="Use base price if empty" 
+                                value={v.price || ''}
+                                onChange={e => handleVariantChange(index, 'price', e.target.value)}
+                                className="w-full bg-black border border-white/10 p-2.5 rounded-lg text-xs text-white"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[8px] uppercase text-zinc-550 mb-1 font-mono">Variant old price (₹, Optional)</label>
+                              <input 
+                                type="number" 
+                                placeholder="Use base old price" 
+                                value={v.oldPrice || ''}
+                                onChange={e => handleVariantChange(index, 'oldPrice', e.target.value)}
+                                className="w-full bg-black border border-white/10 p-2.5 rounded-lg text-xs text-white"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[8px] uppercase text-zinc-550 mb-1 font-mono">Variant stock (Optional)</label>
+                              <input 
+                                type="number" 
+                                placeholder="Use base stock" 
+                                value={v.stock !== undefined && v.stock !== null ? v.stock : ''}
+                                onChange={e => handleVariantChange(index, 'stock', e.target.value)}
                                 className="w-full bg-black border border-white/10 p-2.5 rounded-lg text-xs text-white"
                               />
                             </div>

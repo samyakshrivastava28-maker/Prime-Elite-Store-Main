@@ -6,7 +6,6 @@
     <title>Prime Elite Store | Premium Electronics</title>
     <meta name="description" content="Ultra-premium futuristic luxury ecommerce store for luxury electronics, smart watches, and audio devices." />
     <!-- Website Favicon and Apple Touch icons using the high-quality Prime Elite logo -->
-    <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#000000" />
     <link rel="icon" type="image/webp" href="https://res.cloudinary.com/dxegdaylf/image/upload/v1779965351/prime_elite_store_mrgmmc.webp" />
     <link rel="shortcut icon" type="image/webp" href="https://res.cloudinary.com/dxegdaylf/image/upload/v1779965351/prime_elite_store_mrgmmc.webp" />
@@ -17,12 +16,25 @@
   <body class="bg-black">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <!-- Safeguard script to unregister any stale service workers left in client browsers -->
     <script>
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch(() => {
-            console.log('SW Registration failed.');
-          });
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for (let registration of registrations) {
+            registration.unregister().then(function() {
+              console.log('[ServiceWorker] Unregistered stale worker successfully.');
+            });
+          }
+        }).catch(function(err) {
+          console.warn('[ServiceWorker] Unregistration error:', err);
+        });
+      }
+      // Force purge old cache storage
+      if ('caches' in window) {
+        caches.keys().then(function(names) {
+          for (let name of names) {
+            caches.delete(name);
+          }
         });
       }
     </script>

@@ -1,15 +1,19 @@
 import React, { useMemo } from 'react';
 import { useAppStore } from '../store/appStore';
+import { useRecentsStore } from '../store/recentsStore';
 import { ProductCard } from './ProductCard';
+import { Product } from '../types';
 
 export const DynamicHomeSections = () => {
   const { products } = useAppStore();
+  const { recentProductIds } = useRecentsStore();
 
   const newArrivals = useMemo(() => {
     // Assuming ids are sequentially generated or we fallback to basic slicing.
-    // If you have createdAt field on products, you would do `.sort((a,b) => b.createdAt - a.createdAt)`
-    // Here we'll take the top 8 latest based on reverse order or an 'isNew' flag
-    return [...products].reverse().slice(0, 8);
+    // If you have createdAt field on products, we sort descending.
+    return [...products]
+      .sort((a, b) => b.id.localeCompare(a.id))
+      .slice(0, 8);
   }, [products]);
 
   const bestSellers = useMemo(() => {
@@ -19,6 +23,13 @@ export const DynamicHomeSections = () => {
       .filter((p) => p.trending || p.offerPercentage > 10)
       .slice(0, 8);
   }, [products]);
+
+  const recentlyViewed = useMemo(() => {
+    return recentProductIds
+      .map((id) => products.find((p) => p.id === id))
+      .filter((p): p is Product => p !== undefined)
+      .slice(0, 10);
+  }, [recentProductIds, products]);
 
   return (
     <div className="bg-black space-y-24 py-24 pb-32">
@@ -57,6 +68,25 @@ export const DynamicHomeSections = () => {
           </div>
         </section>
       )}
+
+      {/* Recently Viewed Section */}
+      {recentlyViewed.length > 0 && (
+        <section className="max-w-7xl mx-auto px-6 lg:px-12">
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-3xl md:text-5xl font-display font-light text-white">
+              Recently <span className="font-bold text-gold-500">Viewed</span>
+            </h2>
+          </div>
+          <div className="flex gap-6 overflow-x-auto pb-8 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+            {recentlyViewed.map((p) => (
+              <div key={p.id} className="snap-start shrink-0 w-[280px] md:w-[320px]">
+                <ProductCard product={p} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 };
+

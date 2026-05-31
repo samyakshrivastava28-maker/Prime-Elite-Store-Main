@@ -22,6 +22,16 @@ export const ProductDetails = () => {
   // Media Gallery & Gallery History
   const [activeMedia, setActiveMedia] = useState<{ type: 'image' | 'video'; url: string } | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
+
+  // Dynamic Chosen Variant values
+  const chosenVariantObj = React.useMemo(() => {
+    if (!product || !product.variants) return null;
+    return product.variants.find(v => v.color === selectedVariant);
+  }, [product, selectedVariant]);
+
+  const currentPrice = chosenVariantObj?.price ?? (product?.price ?? 0);
+  const currentOldPrice = chosenVariantObj?.oldPrice ?? (product?.oldPrice ?? 0);
+  const currentStock = chosenVariantObj?.stock ?? (product?.stock ?? 0);
   
   // Interactive Zoom State (Amazon-style)
   const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 });
@@ -332,9 +342,9 @@ export const ProductDetails = () => {
           </div>
 
           <div className="flex items-end gap-6 mb-8 border-b border-white/10 pb-8">
-            <div className="text-4xl font-bold text-white">₹{product.price.toLocaleString()}</div>
-            {product.oldPrice > 0 && (
-              <div className="text-xl text-gray-500 line-through mb-1">₹{product.oldPrice.toLocaleString()}</div>
+            <div className="text-4xl font-bold text-white">₹{currentPrice.toLocaleString()}</div>
+            {currentOldPrice > 0 && (
+              <div className="text-xl text-gray-500 line-through mb-1">₹{currentOldPrice.toLocaleString()}</div>
             )}
           </div>
 
@@ -444,15 +454,22 @@ export const ProductDetails = () => {
               onClick={() => {
                 const confirmed = window.confirm(`Do you want to add ${product.productName} to your cart?`);
                 if (confirmed) {
-                  addItem({ ...product, selectedColor: selectedVariant || '' });
+                  addItem({ 
+                    ...product, 
+                    price: currentPrice,
+                    oldPrice: currentOldPrice,
+                    stock: currentStock,
+                    imageUrls: chosenVariantObj?.image ? [chosenVariantObj.image, ...(product.imageUrls || [])] : product.imageUrls,
+                    selectedColor: selectedVariant || '' 
+                  });
                   alert(`${product.productName} ${selectedVariant ? `(${selectedVariant}) ` : ''}added to your selection successfully!`);
                 }
               }}
-              disabled={product.stock <= 0}
+              disabled={currentStock <= 0}
               className="flex-1 gold-gradient-bg text-black font-bold uppercase tracking-widest py-5 rounded-xl flex items-center justify-center gap-3 hover:scale-[1.01] transition-transform disabled:opacity-50 disabled:hover:scale-100"
             >
               <ShoppingBag size={20} />
-              {product.stock > 0 ? 'Place Order Selection' : 'Temporarily Out of Stock'}
+              {currentStock > 0 ? 'Place Order Selection' : 'Temporarily Out of Stock'}
             </button>
           </div>
           

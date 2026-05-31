@@ -2,6 +2,9 @@ export interface Variant {
   color: string;
   image: string;
   video?: string;
+  price?: number;
+  oldPrice?: number;
+  stock?: number;
 }
 
 export interface Specification {
