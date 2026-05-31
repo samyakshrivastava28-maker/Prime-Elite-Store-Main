@@ -17,21 +17,43 @@ export const executeRecaptcha = async (action: string = 'LOGIN'): Promise<string
       return;
     }
 
+    let isResolved = false;
+    const timeout = setTimeout(() => {
+      if (!isResolved) {
+        isResolved = true;
+        console.warn('[reCAPTCHA] Timeout exceeded (3s) waiting for ready callback. Proceeding to prevent deadlock.');
+        resolve(null);
+      }
+    }, 3000);
+
     try {
       grecaptcha.enterprise.ready(async () => {
+        if (isResolved) return;
         try {
           const siteKey = '6LcLYQUtAAAAAFYNuLxERzU9a7F1xr5gFb7r4Xi2';
           const token = await grecaptcha.enterprise.execute(siteKey, { action });
           console.log(`[reCAPTCHA] Token executed successfully for action ${action}:`, token);
-          resolve(token);
+          if (!isResolved) {
+            isResolved = true;
+            clearTimeout(timeout);
+            resolve(token);
+          }
         } catch (execErr) {
           console.error('[reCAPTCHA] Execution failure:', execErr);
-          resolve(null);
+          if (!isResolved) {
+            isResolved = true;
+            clearTimeout(timeout);
+            resolve(null);
+          }
         }
       });
     } catch (err) {
       console.error('[reCAPTCHA] Ready callback setup error:', err);
-      resolve(null);
+      if (!isResolved) {
+        isResolved = true;
+        clearTimeout(timeout);
+        resolve(null);
+      }
     }
   });
 };

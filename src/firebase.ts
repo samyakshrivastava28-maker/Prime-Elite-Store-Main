@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { 
+  getFirestore,
   initializeFirestore, 
   persistentLocalCache, 
   persistentMultipleTabManager, 
@@ -11,9 +12,10 @@ import {
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Ensure single-instance initialization of Firebase config in proper sequence
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+const isNewApp = getApps().length === 0;
+const app = isNewApp ? initializeApp(firebaseConfig) : getApp();
 
-// Auth first, then Firestore. Pass the exact custom database ID from config
+// Auth first, then Firestore.
 export const auth = getAuth(app);
 
 // Enable robust native offline local persistence with robust try-catch fallback mechanism
@@ -27,9 +29,9 @@ try {
   cacheImplementation = memoryLocalCache();
 }
 
-export const db = initializeFirestore(app, {
-  localCache: cacheImplementation
-}, (firebaseConfig as any).firestoreDatabaseId);
+export const db = isNewApp 
+  ? initializeFirestore(app, { localCache: cacheImplementation }, (firebaseConfig as any).firestoreDatabaseId)
+  : getFirestore(app, (firebaseConfig as any).firestoreDatabaseId);
 
 // 14: Monitor and dispatch custom alerts for quota exceeds or database failures
 export const checkQuotaExceeded = (err: any): boolean => {

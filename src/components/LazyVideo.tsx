@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
+import { getVideoPoster } from '../utils/cloudinary';
 
 interface LazyVideoProps extends React.VideoHTMLAttributes<HTMLVideoElement> {
   src: string;
@@ -49,6 +50,7 @@ export const LazyVideo: React.FC<LazyVideoProps> = ({ src, className, ...props }
       muted
       loop
       playsInline
+      poster={getVideoPoster(src)}
       {...props}
     >
       <source src={src} type="video/mp4" />

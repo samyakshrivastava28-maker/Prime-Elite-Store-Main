@@ -47,6 +47,15 @@ export const PhoneNumberRequiredPage = () => {
     }
 
     setLoading(true);
+    
+    // Protect against hanging promises
+    const withTimeout = (promise: Promise<any>, timeoutMs: number) => {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs))
+      ]);
+    };
+
     try {
       // Execute Google reCAPTCHA Enterprise
       const recaptchaToken = await executeRecaptcha('SIGNUP');
@@ -117,9 +126,10 @@ export const PhoneNumberRequiredPage = () => {
 
       // 1. Write user profile securely to firestore
       try {
-        await setDoc(userRef, updatedProfile, { merge: true });
-      } catch (fErr) {
-        handleFirestoreError(fErr, OperationType.WRITE, `users/${user.uid}`);
+        await withTimeout(setDoc(userRef, updatedProfile, { merge: true }), 8000);
+      } catch (fErr: any) {
+        // If timed out or offline, we will still proceed locally so the user is not completely blocked
+        console.warn("Firestore save might have been delayed or offline:", fErr);
       }
 
       // 2. Dispatch Welcome Email and Admin Notification Emails via EmailJS after Firestore save

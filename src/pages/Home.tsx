@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { ShoppingBag, ChevronRight, Star } from 'lucide-react';
 import { LazyVideo } from '../components/LazyVideo';
 import { SEO } from '../components/SEO';
+import { DynamicHomeSections } from '../components/DynamicHomeSections';
 
 export const Home = () => {
   return (
@@ -189,6 +190,10 @@ export const Home = () => {
           </div>
         </div>
       </section>
+
+      {/* Inject New Arrivals and Best Sellers */}
+      <DynamicHomeSections />
+
     </div>
   );
 };

@@ -4,6 +4,12 @@ import emailjsBrowser from '@emailjs/browser';
 const BACKEND_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '' : 'https://prime-elite-store-main.onrender.com');
 
 export const sendSignupEmail = async (userName: string, userEmail: string, userPhone: string = '', signupDate: string = '') => {
+  if (sessionStorage.getItem(`signupEmail_${userEmail}`)) {
+    console.log('[Email] Signup email already dispatched for this session.');
+    return;
+  }
+  sessionStorage.setItem(`signupEmail_${userEmail}`, 'true');
+
   try {
     const res = await fetch(`${BACKEND_URL}/api/email/signup`, {
       method: 'POST',

@@ -4,10 +4,13 @@ import { ShoppingBag, Menu, X, User } from 'lucide-react';
 import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
 import { BRAND } from '../config';
+import { optimizeCloudinaryUrl } from '../utils/cloudinary';
 import { motion, AnimatePresence } from 'motion/react';
+import { Download } from 'lucide-react';
 
 export const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showCartTooltip, setShowCartTooltip] = useState(false);
   const items = useCartStore((state) => state.items);
@@ -21,7 +24,17 @@ export const Navbar = () => {
       setIsScrolled(window.scrollY > 50);
     };
     window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
   }, []);
 
   useEffect(() => {
@@ -62,7 +75,7 @@ export const Navbar = () => {
         {/* Brand */}
         <Link to="/" className="flex items-center gap-3 group">
           <div className="w-10 h-10 rounded-full overflow-hidden border border-gold-500/30 group-hover:border-gold-500 transition-colors">
-            <img src={BRAND.logoUrl} alt="Logo" className="w-full h-full object-cover" />
+            <img src={optimizeCloudinaryUrl(BRAND.logoUrl, { width: 100 })} alt="Logo" className="w-full h-full object-cover" />
           </div>
           <span className="font-display font-bold text-lg sm:text-xl tracking-wider text-white">
             PRIME <span className="gold-gradient-text">ELITE</span> STORE
@@ -84,8 +97,24 @@ export const Navbar = () => {
           ))}
         </nav>
 
-        {/* Actions */}
-        <div className="flex items-center gap-6">
+          {/* Actions */}
+        <div className="flex items-center gap-4 md:gap-6">
+          {deferredPrompt && (
+            <button
+              onClick={() => {
+                if (deferredPrompt) {
+                  deferredPrompt.prompt();
+                  deferredPrompt.userChoice.then(() => {
+                    setDeferredPrompt(null);
+                  });
+                }
+              }}
+              className="text-white hover:text-gold-400 bg-black border border-gold-500/30 px-3 py-1.5 rounded flex items-center gap-2 text-xs font-mono uppercase transition-colors"
+              title="Install App"
+            >
+              <Download size={14} /> <span className="hidden sm:inline">Install</span>
+            </button>
+          )}
           {user ? (
             <div className="flex items-center gap-3">
               <div 

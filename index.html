@@ -6,6 +6,8 @@
     <title>Prime Elite Store | Premium Electronics</title>
     <meta name="description" content="Ultra-premium futuristic luxury ecommerce store for luxury electronics, smart watches, and audio devices." />
     <!-- Website Favicon and Apple Touch icons using the high-quality Prime Elite logo -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#000000" />
     <link rel="icon" type="image/webp" href="https://res.cloudinary.com/dxegdaylf/image/upload/v1779965351/prime_elite_store_mrgmmc.webp" />
     <link rel="shortcut icon" type="image/webp" href="https://res.cloudinary.com/dxegdaylf/image/upload/v1779965351/prime_elite_store_mrgmmc.webp" />
     <link rel="apple-touch-icon" href="https://res.cloudinary.com/dxegdaylf/image/upload/v1779965351/prime_elite_store_mrgmmc.webp" />
@@ -15,6 +17,15 @@
   <body class="bg-black">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {
+            console.log('SW Registration failed.');
+          });
+        });
+      }
+    </script>
   </body>
 </html>
 

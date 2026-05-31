@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { checkQuotaExceeded } from '../firebase';
+import { optimizeCloudinaryUrl } from '../utils/cloudinary';
 import { Product } from '../types';
 import { useAuthStore } from '../store/authStore';
 import { useAppStore } from '../store/appStore';
@@ -17,6 +18,7 @@ export const Products = () => {
   const [activeCategory, setActiveCategory] = useState(initialCategory);
   const [visibleItems, setVisibleItems] = useState(12);
   const [priceFilter, setPriceFilter] = useState<number | null>(null);
+  const [sortOption, setSortOption] = useState<'newest' | 'price-asc' | 'price-desc' | 'popularity'>('newest');
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [confirmProduct, setConfirmProduct] = useState<Product | null>(null);
   const { user, loading: authLoading } = useAuthStore();
@@ -124,25 +126,36 @@ export const Products = () => {
 
   // 6. Memoize active selection data
   const activeData = React.useMemo(() => {
-    if (activeCategory === 'All') return filteredProducts;
-    
-    const filterFn = (p: Product) => {
-      const matchesQuery = debouncedQuery === '' || 
-        p.productName.toLowerCase().includes(debouncedQuery.toLowerCase()) || 
-        p.category.toLowerCase().includes(debouncedQuery.toLowerCase());
-      const matchesPrice = priceFilter === null || p.price < priceFilter;
-      return matchesQuery && matchesPrice;
-    };
+    let filtered = activeCategory === 'All' ? filteredProducts : [];
 
-    const section = sections.find(s => s.id === activeCategory);
-    if (section) {
-      return section.data.filter(filterFn);
+    if (activeCategory !== 'All') {
+      const filterFn = (p: Product) => {
+        const matchesQuery = debouncedQuery === '' || 
+          p.productName.toLowerCase().includes(debouncedQuery.toLowerCase()) || 
+          p.category.toLowerCase().includes(debouncedQuery.toLowerCase());
+        const matchesPrice = priceFilter === null || p.price < priceFilter;
+        return matchesQuery && matchesPrice;
+      };
+
+      const section = sections.find(s => s.id === activeCategory);
+      if (section) {
+        filtered = section.data.filter(filterFn);
+      } else {
+        // Fallback filter for dynamic custom categories
+        filtered = products.filter(p => 
+          p.category && p.category.toLowerCase() === activeCategory.toLowerCase() && filterFn(p)
+        );
+      }
     }
-    // Fallback filter for dynamic custom categories
-    return products.filter(p => 
-      p.category && p.category.toLowerCase() === activeCategory.toLowerCase() && filterFn(p)
-    );
-  }, [activeCategory, filteredProducts, sections, products, debouncedQuery, priceFilter]);
+
+    // Apply Sorting
+    return filtered.sort((a, b) => {
+      if (sortOption === 'price-asc') return a.price - b.price;
+      if (sortOption === 'price-desc') return b.price - a.price;
+      if (sortOption === 'popularity') return (b.offerPercentage || 0) - (a.offerPercentage || 0);
+      return 0; // newest defaults to fetched order (often chronological via timestamp if queried)
+    });
+  }, [activeCategory, filteredProducts, sections, products, debouncedQuery, priceFilter, sortOption]);
 
 
   const ProductCard = React.memo(({ product }: { product: Product }) => {
@@ -162,7 +175,7 @@ export const Products = () => {
            )}
            {product.variants && product.variants.length > 0 ? (
              <img 
-               src={product.variants[0].image} 
+               src={optimizeCloudinaryUrl(product.variants[0].image, { width: 400 })} 
                alt={product.productName} 
                className={`object-cover w-full h-full rounded-md md:rounded-none group-hover:scale-105 transition-all duration-700 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`} 
                loading="lazy" 
@@ -170,7 +183,7 @@ export const Products = () => {
              />
            ) : product.imageUrls && product.imageUrls[0] ? (
              <img 
-               src={product.imageUrls[0]} 
+               src={optimizeCloudinaryUrl(product.imageUrls[0], { width: 400 })} 
                alt={product.productName} 
                className={`object-cover w-full h-full rounded-md md:rounded-none group-hover:scale-105 transition-all duration-700 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`} 
                loading="lazy" 
@@ -296,6 +309,16 @@ export const Products = () => {
               />
               <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
             </div>
+            <select
+              value={sortOption}
+              onChange={(e) => setSortOption(e.target.value as any)}
+              className="bg-white/5 border border-white/10 text-sm rounded-full px-4 py-2 focus:border-gold-500/50 outline-none hidden md:block"
+            >
+              <option value="newest" className="bg-zinc-900">Newest</option>
+              <option value="price-asc" className="bg-zinc-900">Price: Low to High</option>
+              <option value="price-desc" className="bg-zinc-900">Price: High to Low</option>
+              <option value="popularity" className="bg-zinc-900">Popularity</option>
+            </select>
             <div className="relative">
               <button 
                 onClick={() => setShowFilterDropdown(!showFilterDropdown)}
@@ -313,6 +336,20 @@ export const Products = () => {
                     <button onClick={() => setPriceFilter(3000)} className={`px-3 py-2 text-sm text-left rounded-lg transition-colors ${priceFilter === 3000 ? 'bg-gold-500/20 text-gold-500' : 'hover:bg-white/5 text-white'}`}>Below ₹3,000</button>
                     <button onClick={() => setPriceFilter(5000)} className={`px-3 py-2 text-sm text-left rounded-lg transition-colors ${priceFilter === 5000 ? 'bg-gold-500/20 text-gold-500' : 'hover:bg-white/5 text-white'}`}>Below ₹5,000</button>
                     <button onClick={() => setPriceFilter(10000)} className={`px-3 py-2 text-sm text-left rounded-lg transition-colors ${priceFilter === 10000 ? 'bg-gold-500/20 text-gold-500' : 'hover:bg-white/5 text-white'}`}>Below ₹10,000</button>
+                    {(priceFilter !== null || searchQuery !== '' || sortOption !== 'newest' || activeCategory !== 'All') && (
+                      <button 
+                        onClick={() => {
+                          setPriceFilter(null);
+                          setSearchQuery('');
+                          setSortOption('newest');
+                          setActiveCategory('All');
+                          setShowFilterDropdown(false);
+                        }} 
+                        className="px-3 py-2 mt-2 text-sm text-center font-bold text-black bg-gold-500 rounded-lg hover:bg-gold-400 transition-colors uppercase tracking-widest text-[10px]"
+                      >
+                        Clear Filters
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

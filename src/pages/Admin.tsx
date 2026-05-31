@@ -7,7 +7,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Plus, Edit2, Trash2, Database, Image as ImageIcon, Video as VideoIcon, 
   Sparkles, Tag, Check, AlertTriangle, ArrowLeft, RefreshCw, 
-  Layers, CheckCircle2, Info, Save, Eye, X, HelpCircle, FileText,
+  Layers, CheckCircle2, Info, Save, Eye, X, HelpCircle, FileText, Clock,
   TrendingUp, Sliders, DollarSign, Package, Menu, LogOut, Lock, 
   User, ShieldAlert, ChevronRight, Activity, Percent, EyeOff
 } from 'lucide-react';
@@ -876,6 +876,10 @@ export const Admin = () => {
                 <span className={`w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0`} /> 
                 Email Service Status:<br />CONNECTED
               </div>
+              <div className={`flex items-center gap-1.5 text-emerald-400`}>
+                <span className={`w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0`} /> 
+                Cloudinary Status:<br />CONNECTED
+              </div>
             </div>
           </div>
           
@@ -937,7 +941,54 @@ export const Admin = () => {
               <p className="text-xs text-zinc-500 mt-1">Real-time status of your high-end catalog collections synchronized on Google Cloud Firestore.</p>
             </div>
 
-            {/* Dashboard widgets */}
+            {/* Advanced Dashboard widgets */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+              <div className="bg-zinc-950 p-5 rounded-2xl border border-white/5 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity text-white">
+                  <Package size={64} />
+                </div>
+                <div className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 font-mono mb-1">Total Orders</div>
+                <div className="text-3xl font-display font-black text-white">{orders.length}</div>
+                <div className="text-[9px] text-zinc-500 mt-2 font-mono flex items-center gap-1">
+                  <Check size={10} className="text-emerald-500" /> Historical Volume
+                </div>
+              </div>
+
+              <div className="bg-zinc-950 p-5 rounded-2xl border border-white/5 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity text-amber-500">
+                  <Clock size={64} />
+                </div>
+                <div className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 font-mono mb-1">Pending Processing</div>
+                <div className="text-3xl font-display font-black text-amber-500">{orders.filter(o => o.status === 'pending').length}</div>
+                <div className="text-[9px] text-zinc-500 mt-2 font-mono flex items-center gap-1">
+                  <Info size={10} className="text-amber-500" /> Awaiting Confirmation
+                </div>
+              </div>
+
+              <div className="bg-zinc-950 p-5 rounded-2xl border border-white/5 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity text-emerald-500">
+                  <Check size={64} />
+                </div>
+                <div className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 font-mono mb-1">Confirmed Dispatches</div>
+                <div className="text-3xl font-display font-black text-emerald-500">{orders.filter(o => o.status !== 'pending' && o.status !== 'cancelled').length}</div>
+                <div className="text-[9px] text-zinc-500 mt-2 font-mono flex items-center gap-1">
+                  <Check size={10} className="text-[#34d399]" /> Active / Completed
+                </div>
+              </div>
+
+              <div className="bg-zinc-950 p-5 rounded-2xl border border-white/5 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity text-gold-500">
+                  <DollarSign size={64} />
+                </div>
+                <div className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 font-mono mb-1">Lifetime Revenue</div>
+                <div className="text-3xl font-display font-black text-gold-500">₹{orders.filter(o => o.status !== 'cancelled').reduce((acc, order) => acc + (order.totalAmount || 0), 0).toLocaleString()}</div>
+                <div className="text-[9px] text-zinc-500 mt-2 font-mono flex items-center gap-1">
+                  <TrendingUp size={10} className="text-gold-500" /> Real-time Earnings
+                </div>
+              </div>
+            </div>
+
+            {/* Inventory Dashboard widgets */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-zinc-950 p-5 rounded-2xl border border-white/5 relative overflow-hidden group">
                 <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity text-white">

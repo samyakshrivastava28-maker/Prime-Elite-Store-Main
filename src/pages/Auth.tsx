@@ -55,8 +55,16 @@ export const Auth = () => {
     setMessage('');
     setIsSubmitting(true);
     
-    try {
-      // Execute Google reCAPTCHA Enterprise
+      // Add a robust Promise race to prevent Firestore from hanging the auth flow
+      const withTimeout = (promise: Promise<any>, timeoutMs: number) => {
+        return Promise.race([
+          promise,
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs))
+        ]);
+      };
+
+      try {
+        // Execute Google reCAPTCHA Enterprise
       const recaptchaToken = await executeRecaptcha(isLogin ? 'LOGIN' : 'SIGNUP');
       if (recaptchaToken) {
         console.log(`[reCAPTCHA] Token executed successfully for ${isLogin ? 'LOGIN' : 'SIGNUP'}:`, recaptchaToken);
@@ -76,7 +84,7 @@ export const Auth = () => {
         while (!fetchSuccess && attempts < 3) {
           try {
             if (!navigator.onLine) throw new Error("Client is offline");
-            userDoc = await getDoc(doc(db, 'users', cred.user.uid));
+            userDoc = await withTimeout(getDoc(doc(db, 'users', cred.user.uid)), 8000);
             fetchSuccess = true;
           } catch (fErr: any) {
             lastErr = fErr;
@@ -190,7 +198,7 @@ export const Auth = () => {
         } catch (_) {}
       }
       
-      const isOfflineError = displayMessage.toLowerCase().includes('offline') || err?.toString().toLowerCase().includes('offline');
+      const isOfflineError = !navigator.onLine;
       if (isOfflineError) {
         displayMessage = "No internet connection. Please reconnect and try again.";
       }
@@ -205,6 +213,14 @@ export const Auth = () => {
     setError('');
     setIsSubmitting(true);
     
+    // Add a robust Promise race to prevent Firestore from hanging the auth flow
+    const withTimeout = (promise: Promise<any>, timeoutMs: number) => {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs))
+      ]);
+    };
+
     // Execute Google reCAPTCHA Enterprise
     const recaptchaToken = await executeRecaptcha('GOOGLE_LOGIN');
     if (recaptchaToken) {
@@ -231,7 +247,7 @@ export const Auth = () => {
       while (!fetchSuccess && attempts < 3) {
         try {
           if (!navigator.onLine) throw new Error("Client is offline");
-          userDoc = await getDoc(doc(db, 'users', cred.user.uid));
+          userDoc = await withTimeout(getDoc(doc(db, 'users', cred.user.uid)), 8000);
           fetchSuccess = true;
         } catch (fErr: any) {
           lastErr = fErr;
@@ -318,7 +334,7 @@ export const Auth = () => {
         } catch (_) {}
       }
       
-      const isOfflineError = displayMessage.toLowerCase().includes('offline') || err?.toString().toLowerCase().includes('offline');
+      const isOfflineError = !navigator.onLine;
       if (isOfflineError) {
         displayMessage = "No internet connection. Please reconnect and try again.";
       }
