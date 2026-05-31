@@ -3,7 +3,7 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswor
 import { auth, db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { sendLoginEmail } from '../utils/email';
+import { sendLoginEmail, sendSignupEmail } from '../utils/email';
 import { SEO } from '../components/SEO';
 import { useAuthStore } from '../store/authStore';
 import { Eye, EyeOff } from 'lucide-react';
@@ -55,16 +55,17 @@ export const Auth = () => {
     setMessage('');
     setIsSubmitting(true);
     
-      // Add a robust Promise race to prevent Firestore from hanging the auth flow
-      const withTimeout = (promise: Promise<any>, timeoutMs: number) => {
-        return Promise.race([
-          promise,
-          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs))
-        ]);
-      };
+    // Add validation for signup
+    if (!isLogin) {
+      if (!phone || phone.replace(/[^\d]/g, '').length !== 10) {
+        setError("Please enter a valid 10-digit mobile phone number.");
+        setIsSubmitting(false);
+        return;
+      }
+    }
 
-      try {
-        // Execute Google reCAPTCHA Enterprise
+    try {
+      // Execute Google reCAPTCHA Enterprise
       const recaptchaToken = await executeRecaptcha(isLogin ? 'LOGIN' : 'SIGNUP');
       if (recaptchaToken) {
         console.log(`[reCAPTCHA] Token executed successfully for ${isLogin ? 'LOGIN' : 'SIGNUP'}:`, recaptchaToken);
@@ -76,29 +77,16 @@ export const Auth = () => {
         const userEmail = (cred.user.email || email).toLowerCase().trim();
         const isAdmin = userEmail === 'webhub2811@gmail.com' || userEmail === 'prime.elitestore02@gmail.com' || userEmail === 'primeelitestore02@gmail.com';
 
-        let userDoc;
-        let fetchSuccess = false;
-        let attempts = 0;
-        let lastErr;
-        
-        while (!fetchSuccess && attempts < 3) {
-          try {
-            if (!navigator.onLine) throw new Error("Client is offline");
-            userDoc = await withTimeout(getDoc(doc(db, 'users', cred.user.uid)), 8000);
-            fetchSuccess = true;
-          } catch (fErr: any) {
-            lastErr = fErr;
-            attempts++;
-            if (attempts < 3) await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempts - 1)));
-          }
-        }
-        
-        if (!fetchSuccess && lastErr) {
-          handleFirestoreError(lastErr, OperationType.GET, `users/${cred.user.uid}`);
+        // Fast, safe, unblocked firestore fetch
+        let userDoc = null;
+        try {
+          userDoc = await getDoc(doc(db, 'users', cred.user.uid));
+        } catch (fErr: any) {
+          console.warn('[Auth] Direct profile load failed or timed out:', fErr);
         }
 
         const userData = userDoc?.exists() ? userDoc.data() : null;
-        const phone = userData?.phone || userData?.phoneNumber || '';
+        const currentPhone = userData?.phone || userData?.phoneNumber || '';
 
         if (isAdmin) {
           try {
@@ -116,9 +104,9 @@ export const Auth = () => {
           return;
         }
 
-        if (phone) {
+        if (currentPhone) {
           if (!sessionStorage.getItem('loginEmailSent')) {
-            sendLoginEmail(userData?.name || cred.user.displayName || 'Customer', userEmail, phone).catch(emailErr => {
+            sendLoginEmail(userData?.name || cred.user.displayName || 'Customer', userEmail, currentPhone).catch(emailErr => {
               console.error('[Email] Background sign-in email dispatch failed:', emailErr);
             });
             sessionStorage.setItem('loginEmailSent', 'true');
@@ -130,6 +118,7 @@ export const Auth = () => {
             navigate('/');
           }
         } else {
+          // No phone number, will trigger PhoneNumberRequiredPage on navigation to home
           navigate('/');
         }
       } else {
@@ -137,6 +126,7 @@ export const Auth = () => {
         
         const userEmail = email.toLowerCase().trim();
         const isAdmin = userEmail === 'webhub2811@gmail.com' || userEmail === 'prime.elitestore02@gmail.com' || userEmail === 'primeelitestore02@gmail.com';
+        const formattedPhone = phone.replace(/[^\d]/g, '');
 
         if (isAdmin) {
           try {
@@ -157,13 +147,33 @@ export const Auth = () => {
             await setDoc(doc(db, 'users', cred.user.uid), {
               email: userEmail,
               name,
-              phoneNumber: '',
+              phoneNumber: formattedPhone,
+              phone: formattedPhone,
               phoneVerified: false,
               provider: 'email',
               role: 'customer',
-              profileCompleted: false,
+              profileCompleted: true, // Complete profile as phone is provided!
+              welcomeEmailSent: true,
               createdAt: new Date().toISOString()
             });
+
+            // Parse formatted human-readable current local timestamp
+            const signupDateString = new Date().toLocaleString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              timeZoneName: 'short'
+            });
+
+            // Dispatch welcome signup email directly 
+            sendSignupEmail(name.trim(), userEmail, formattedPhone, signupDateString).catch(emailErr => {
+              console.error('[Email] Background signup email dispatch failed:', emailErr);
+            });
+
           } catch (fErr) {
             handleFirestoreError(fErr, OperationType.WRITE, `users/${cred.user.uid}`);
           }
@@ -212,14 +222,6 @@ export const Auth = () => {
   const handleGoogleAuth = async () => {
     setError('');
     setIsSubmitting(true);
-    
-    // Add a robust Promise race to prevent Firestore from hanging the auth flow
-    const withTimeout = (promise: Promise<any>, timeoutMs: number) => {
-      return Promise.race([
-        promise,
-        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs))
-      ]);
-    };
 
     // Execute Google reCAPTCHA Enterprise
     const recaptchaToken = await executeRecaptcha('GOOGLE_LOGIN');
@@ -227,8 +229,8 @@ export const Auth = () => {
       console.log('[reCAPTCHA] Token executed successfully for GOOGLE_LOGIN:', recaptchaToken);
     }
 
+    // Google Sign-In Provider - requesting public fields (no sensitive Calendar scope requested to bypass 'unverified app' warning)
     const provider = new GoogleAuthProvider();
-    provider.addScope('https://www.googleapis.com/auth/calendar');
     try {
       const cred = await signInWithPopup(auth, provider);
       const credential = GoogleAuthProvider.credentialFromResult(cred);
@@ -239,25 +241,12 @@ export const Auth = () => {
       const userEmail = (cred.user.email || '').toLowerCase().trim();
       const isAdmin = userEmail === 'webhub2811@gmail.com' || userEmail === 'prime.elitestore02@gmail.com' || userEmail === 'primeelitestore02@gmail.com';
 
-      let userDoc;
-      let fetchSuccess = false;
-      let attempts = 0;
-      let lastErr;
-      
-      while (!fetchSuccess && attempts < 3) {
-        try {
-          if (!navigator.onLine) throw new Error("Client is offline");
-          userDoc = await withTimeout(getDoc(doc(db, 'users', cred.user.uid)), 8000);
-          fetchSuccess = true;
-        } catch (fErr: any) {
-          lastErr = fErr;
-          attempts++;
-          if (attempts < 3) await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempts - 1)));
-        }
-      }
-      
-      if (!fetchSuccess && lastErr) {
-        handleFirestoreError(lastErr, OperationType.GET, `users/${cred.user.uid}`);
+      // Fast database fetch
+      let userDoc = null;
+      try {
+        userDoc = await getDoc(doc(db, 'users', cred.user.uid));
+      } catch (fErr: any) {
+        console.warn('[Auth] Direct Google profile load failed or timed out:', fErr);
       }
       
       if (isAdmin) {
@@ -414,17 +403,34 @@ export const Auth = () => {
         
         <form onSubmit={handleAuth} className="flex flex-col gap-5">
           {!isLogin && (
-            <div>
-              <label className="block text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-2">Full Name</label>
-              <input 
-                type="text" 
-                placeholder="e.g. John Doe" 
-                required
-                value={name}
-                onChange={e => setName(e.target.value)}
-                className="bg-black border border-white/10 p-4 rounded text-sm focus:border-gold-500/50 outline-none w-full text-white transition-all uppercase tracking-wider font-mono" 
-              />
-            </div>
+            <>
+              <div>
+                <label className="block text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-2">Full Name</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. John Doe" 
+                  required
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  className="bg-black border border-white/10 p-4 rounded text-sm focus:border-gold-500/50 outline-none w-full text-white transition-all uppercase tracking-wider font-mono" 
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-2">Mobile Phone Number</label>
+                <input 
+                  type="tel" 
+                  placeholder="e.g. 9876543210" 
+                  required
+                  value={phone}
+                  onChange={e => {
+                    const cleanValue = e.target.value.replace(/[^\d]/g, '');
+                    if (cleanValue.length <= 10) setPhone(cleanValue);
+                  }}
+                  className="bg-black border border-white/10 p-4 rounded text-sm focus:border-gold-500/50 outline-none w-full text-white transition-all font-mono" 
+                />
+              </div>
+            </>
           )}
           
           <div>

@@ -24,11 +24,11 @@ async function startServer() {
   app.post("/api/email/signup", async (req, res) => {
     const { userName, userEmail, userPhone, signupDate } = req.body;
     
-    const serviceId = process.env.EMAILJS_SERVICE_ID_1 || 'service_xavwsdd';
-    const templateUser = process.env.EMAILJS_TEMPLATE_ID_SIGNUP_USER_1 || 'template_bnv795b';
-    const templateAdmin = process.env.EMAILJS_TEMPLATE_ID_SIGNUP_ADMIN_1 || 'template_yov75k3';
-    const pubKey = process.env.EMAILJS_PUBLIC_KEY_1 || 'xdiix4UI5x2P7LVE2';
-    const privateKey = process.env.EMAILJS_PRIVATE_KEY_1 || '_dn7583EYbrtWcR-v9jDC';
+    const serviceId = process.env.EMAILJS_SERVICE_ID_1 || process.env.VITE_EMAILJS_SERVICE_ID_1 || 'service_xavwsdd';
+    const templateUser = process.env.EMAILJS_TEMPLATE_ID_SIGNUP_USER_1 || process.env.VITE_EMAILJS_TEMPLATE_ID_SIGNUP_USER_1 || 'template_bnv795b';
+    const templateAdmin = process.env.EMAILJS_TEMPLATE_ID_SIGNUP_ADMIN_1 || process.env.VITE_EMAILJS_TEMPLATE_ID_SIGNUP_ADMIN_1 || 'template_yov75k3';
+    const pubKey = process.env.EMAILJS_PUBLIC_KEY_1 || process.env.VITE_EMAILJS_PUBLIC_KEY_1 || 'xdiix4UI5x2P7LVE2';
+    const privateKey = process.env.EMAILJS_PRIVATE_KEY_1 || process.env.VITE_EMAILJS_PRIVATE_KEY_1 || '_dn7583EYbrtWcR-v9jDC';
 
     const templateParams = {
       user_name: userName,
@@ -53,11 +53,11 @@ async function startServer() {
   app.post("/api/email/login", async (req, res) => {
     const { userName, userEmail, userPhone } = req.body;
     
-    const serviceId = process.env.EMAILJS_SERVICE_ID_2 || 'service_3mc4i0a';
-    const templateUser = process.env.EMAILJS_TEMPLATE_ID_LOGIN_USER_2 || 'template_qe2gx2m';
-    const templateAdmin = process.env.EMAILJS_TEMPLATE_ID_LOGIN_ADMIN_2 || 'template_8kcg56c';
-    const pubKey = process.env.EMAILJS_PUBLIC_KEY_2 || 'z23jLy3RVmEUYUin6';
-    const privateKey = process.env.EMAILJS_PRIVATE_KEY_2 || 'yvnZb9n2VGc7NSlg0PN-w';
+    const serviceId = process.env.EMAILJS_SERVICE_ID_2 || process.env.VITE_EMAILJS_SERVICE_ID_2 || 'service_3mc4i0a';
+    const templateUser = process.env.EMAILJS_TEMPLATE_ID_LOGIN_USER_2 || process.env.VITE_EMAILJS_TEMPLATE_ID_LOGIN_USER_2 || 'template_qe2gx2m';
+    const templateAdmin = process.env.EMAILJS_TEMPLATE_ID_LOGIN_ADMIN_2 || process.env.VITE_EMAILJS_TEMPLATE_ID_LOGIN_ADMIN_2 || 'template_8kcg56c';
+    const pubKey = process.env.EMAILJS_PUBLIC_KEY_2 || process.env.VITE_EMAILJS_PUBLIC_KEY_2 || 'z23jLy3RVmEUYUin6';
+    const privateKey = process.env.EMAILJS_PRIVATE_KEY_2 || process.env.VITE_EMAILJS_PRIVATE_KEY_2 || 'yvnZb9n2VGc7NSlg0PN-w';
 
     const templateParams = {
       user_name: userName,
@@ -80,13 +80,13 @@ async function startServer() {
   app.post("/api/email/order", async (req, res) => {
     const { type, templateParams } = req.body; // type can be 'admin' or 'customer'
     
-    const serviceId = process.env.EMAILJS_SERVICE_ID_3 || 'service_a8w9xi7';
-    const pubKey = process.env.EMAILJS_PUBLIC_KEY_3 || 'Buuw2UTdprSoJ3wVu';
-    const privateKey = process.env.EMAILJS_PRIVATE_KEY_3 || 'bUUitkI_agwG3AdzFNCh4';
+    const serviceId = process.env.EMAILJS_SERVICE_ID_3 || process.env.VITE_EMAILJS_SERVICE_ID_3 || 'service_a8w9xi7';
+    const pubKey = process.env.EMAILJS_PUBLIC_KEY_3 || process.env.VITE_EMAILJS_PUBLIC_KEY_3 || 'Buuw2UTdprSoJ3wVu';
+    const privateKey = process.env.EMAILJS_PRIVATE_KEY_3 || process.env.VITE_EMAILJS_PRIVATE_KEY_3 || 'bUUitkI_agwG3AdzFNCh4';
 
     const templateId = type === 'admin' 
-      ? (process.env.EMAILJS_TEMPLATE_ID_ORDER_ADMIN_3 || 'template_r5nxgqn')
-      : (process.env.EMAILJS_TEMPLATE_ID_ORDER_USER_3 || 'template_pem4aev');
+      ? (process.env.EMAILJS_TEMPLATE_ID_ORDER_ADMIN_3 || process.env.VITE_EMAILJS_TEMPLATE_ID_ORDER_ADMIN_3 || 'template_r5nxgqn')
+      : (process.env.EMAILJS_TEMPLATE_ID_ORDER_USER_3 || process.env.VITE_EMAILJS_TEMPLATE_ID_ORDER_USER_3 || 'template_pem4aev');
 
     try {
       await emailjs.send(serviceId, templateId, templateParams, { publicKey: pubKey, privateKey: privateKey });

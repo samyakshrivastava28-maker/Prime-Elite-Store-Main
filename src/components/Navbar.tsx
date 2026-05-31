@@ -6,11 +6,9 @@ import { useAuthStore } from '../store/authStore';
 import { BRAND } from '../config';
 import { optimizeCloudinaryUrl } from '../utils/cloudinary';
 import { motion, AnimatePresence } from 'motion/react';
-import { Download } from 'lucide-react';
 
 export const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showCartTooltip, setShowCartTooltip] = useState(false);
   const items = useCartStore((state) => state.items);
@@ -25,15 +23,8 @@ export const Navbar = () => {
     };
     window.addEventListener('scroll', handleScroll);
     
-    const handleBeforeInstallPrompt = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
   }, []);
 
@@ -99,22 +90,6 @@ export const Navbar = () => {
 
           {/* Actions */}
         <div className="flex items-center gap-4 md:gap-6">
-          {deferredPrompt && (
-            <button
-              onClick={() => {
-                if (deferredPrompt) {
-                  deferredPrompt.prompt();
-                  deferredPrompt.userChoice.then(() => {
-                    setDeferredPrompt(null);
-                  });
-                }
-              }}
-              className="text-white hover:text-gold-400 bg-black border border-gold-500/30 px-3 py-1.5 rounded flex items-center gap-2 text-xs font-mono uppercase transition-colors"
-              title="Install App"
-            >
-              <Download size={14} /> <span className="hidden sm:inline">Install</span>
-            </button>
-          )}
           {user ? (
             <div className="flex items-center gap-3">
               <div 

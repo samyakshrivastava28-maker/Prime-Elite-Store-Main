@@ -21,10 +21,10 @@ export const executeRecaptcha = async (action: string = 'LOGIN'): Promise<string
     const timeout = setTimeout(() => {
       if (!isResolved) {
         isResolved = true;
-        console.warn('[reCAPTCHA] Timeout exceeded (3s) waiting for ready callback. Proceeding to prevent deadlock.');
+        console.warn('[reCAPTCHA] Timeout exceeded (150ms) waiting for ready callback. Proceeding to prevent deadlock.');
         resolve(null);
       }
-    }, 3000);
+    }, 150);
 
     try {
       grecaptcha.enterprise.ready(async () => {

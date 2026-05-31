@@ -47,17 +47,9 @@ export const PhoneNumberRequiredPage = () => {
     }
 
     setLoading(true);
-    
-    // Protect against hanging promises
-    const withTimeout = (promise: Promise<any>, timeoutMs: number) => {
-      return Promise.race([
-        promise,
-        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs))
-      ]);
-    };
 
     try {
-      // Execute Google reCAPTCHA Enterprise
+      // Execute Google reCAPTCHA Enterprise with fast fallback
       const recaptchaToken = await executeRecaptcha('SIGNUP');
       if (recaptchaToken) {
         console.log('[reCAPTCHA] Verified human token successfully compiled on complete signup.');
@@ -124,9 +116,9 @@ export const PhoneNumberRequiredPage = () => {
         createdAt: user.provider === 'google' ? new Date().toISOString() : (user.provider || new Date().toISOString())
       };
 
-      // 1. Write user profile securely to firestore
+      // 1. Write user profile securely and directly to firestore
       try {
-        await withTimeout(setDoc(userRef, updatedProfile, { merge: true }), 8000);
+        await setDoc(userRef, updatedProfile, { merge: true });
       } catch (fErr: any) {
         // If timed out or offline, we will still proceed locally so the user is not completely blocked
         console.warn("Firestore save might have been delayed or offline:", fErr);
@@ -150,7 +142,7 @@ export const PhoneNumberRequiredPage = () => {
         loading: false
       });
       
-      // Optional: Since React Router is used, we can do a location change if helpful, but state does it.
+      // Navigate to products layout instantly
       window.location.href = '/products';
 
     } catch (err: any) {
@@ -224,7 +216,10 @@ export const PhoneNumberRequiredPage = () => {
                 required
                 disabled={loading}
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => {
+                  const cleanValue = e.target.value.replace(/[^\d]/g, '');
+                  if (cleanValue.length <= 10) setPhone(cleanValue);
+                }}
                 className="w-full bg-zinc-900 border border-white/5 rounded pl-11 pr-4 py-3.5 text-white placeholder-zinc-700 focus:border-gold-500/40 outline-none transition-all font-mono text-sm"
               />
             </div>
