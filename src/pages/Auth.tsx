@@ -6,6 +6,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { sendLoginEmail } from '../utils/email';
 import { SEO } from '../components/SEO';
 import { useAuthStore } from '../store/authStore';
+import { Eye, EyeOff } from 'lucide-react';
 
 export const Auth = () => {
   const [searchParams] = useSearchParams();
@@ -26,6 +27,15 @@ export const Auth = () => {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Clear err/msg states beautifully on toggles to prevent stale cached error residuals
+  const handleToggleMode = (loginMode: boolean) => {
+    setIsLogin(loginMode);
+    setError('');
+    setMessage('');
+    setShowPassword(false);
+  };
 
   useEffect(() => {
     const mode = searchParams.get('mode');
@@ -34,6 +44,8 @@ export const Auth = () => {
     } else if (mode === 'signup') {
       setIsLogin(false);
     }
+    setError('');
+    setMessage('');
   }, [searchParams]);
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -219,12 +231,16 @@ export const Auth = () => {
     } catch (err: any) {
       console.error("Google Auth error:", err);
       let displayMessage = err?.message || '';
-      try {
-        if (displayMessage.startsWith('{')) {
-          const parsed = JSON.parse(displayMessage);
-          displayMessage = parsed.error || 'Google Authentication failed.';
-        }
-      } catch (_) {}
+      if (displayMessage.includes('auth/popup-closed-by-user') || displayMessage.includes('popup-closed-by-user') || err?.code === 'auth/popup-closed-by-user') {
+        displayMessage = "Google session setup was closed before completing. Please try continuing again or fill in the forms manually.";
+      } else {
+        try {
+          if (displayMessage.startsWith('{')) {
+            const parsed = JSON.parse(displayMessage);
+            displayMessage = parsed.error || 'Google Authentication failed.';
+          }
+        } catch (_) {}
+      }
       setError(displayMessage || 'Google Authentication failed.');
     } finally {
       setIsSubmitting(false);
@@ -259,7 +275,7 @@ export const Auth = () => {
         <div className="flex bg-black/50 p-1 rounded-xl border border-white/10 mb-8 select-none">
           <button 
             type="button" 
-            onClick={() => setIsLogin(false)}
+            onClick={() => handleToggleMode(false)}
             className={`flex-1 py-4.5 rounded-lg text-sm tracking-widest uppercase font-bold transition-all text-center ${
               !isLogin 
                 ? 'gold-gradient-bg text-black shadow-lg scale-100 font-extrabold' 
@@ -271,7 +287,7 @@ export const Auth = () => {
           </button>
           <button 
             type="button" 
-            onClick={() => setIsLogin(true)}
+            onClick={() => handleToggleMode(true)}
             className={`flex-1 py-4.5 rounded-lg text-sm tracking-widest uppercase font-bold transition-all text-center ${
               isLogin 
                 ? 'gold-gradient-bg text-black shadow-lg scale-100 font-extrabold' 
@@ -327,14 +343,25 @@ export const Auth = () => {
           
           <div>
             <label className="block text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-2">Password</label>
-            <input 
-              type="password" 
-              placeholder="••••••••••••" 
-              required={!isLogin || password.length > 0}
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              className="bg-black border border-white/10 p-4 rounded text-sm focus:border-gold-500/50 outline-none w-full text-white transition-all font-mono" 
-            />
+            <div className="relative">
+              <input 
+                type={showPassword ? 'text' : 'password'} 
+                placeholder="••••••••••••" 
+                required={!isLogin || password.length > 0}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                className="bg-black border border-white/10 p-4 pr-12 rounded text-sm focus:border-gold-500/50 outline-none w-full text-white transition-all font-mono" 
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors cursor-pointer select-none focus:outline-none"
+                tabIndex={-1}
+                title={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
           
           {error && (
@@ -392,7 +419,8 @@ export const Auth = () => {
         <div className="mt-8 pt-6 border-t border-white/5 text-center text-xs text-gray-500 select-none">
           {isLogin ? "Don't have an eye-safe premium account? " : "Already registered as an elite club peer? "}
           <button 
-            onClick={() => setIsLogin(!isLogin)} 
+            type="button"
+            onClick={() => handleToggleMode(!isLogin)} 
             className="text-gold-500 hover:underline hover:text-gold-400 font-bold ml-1 uppercase font-mono tracking-wider"
           >
             {isLogin ? 'Create Account' : 'Log In Instead'}
