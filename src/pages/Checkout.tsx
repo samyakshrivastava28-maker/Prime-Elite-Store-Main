@@ -3,7 +3,7 @@ import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
 import { sendAdminOrderEmail } from '../utils/email';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { collection, addDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { SEO } from '../components/SEO';
@@ -35,12 +35,6 @@ export const Checkout = () => {
 
   const handleOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) {
-      alert("Please create an account or log in to place your order.");
-      navigate('/login?redirect=checkout&mode=signup');
-      return;
-    }
-
     if (totalQuantity < 1) {
       setError('Your cart is empty.');
       return;

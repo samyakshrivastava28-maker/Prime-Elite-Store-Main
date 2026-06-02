@@ -3,7 +3,7 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswor
 import { auth, db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { sendLoginEmail, sendSignupEmail } from '../utils/email';
+import { sendLoginEmail } from '../utils/email';
 import { SEO } from '../components/SEO';
 import { useAuthStore } from '../store/authStore';
 import { Eye, EyeOff } from 'lucide-react';
@@ -55,15 +55,6 @@ export const Auth = () => {
     setMessage('');
     setIsSubmitting(true);
     
-    // Add validation for signup
-    if (!isLogin) {
-      if (!phone || phone.replace(/[^\d]/g, '').length !== 10) {
-        setError("Please enter a valid 10-digit mobile phone number.");
-        setIsSubmitting(false);
-        return;
-      }
-    }
-
     try {
       // Execute Google reCAPTCHA Enterprise
       const recaptchaToken = await executeRecaptcha(isLogin ? 'LOGIN' : 'SIGNUP');
@@ -77,16 +68,15 @@ export const Auth = () => {
         const userEmail = (cred.user.email || email).toLowerCase().trim();
         const isAdmin = userEmail === 'webhub2811@gmail.com' || userEmail === 'prime.elitestore02@gmail.com' || userEmail === 'primeelitestore02@gmail.com';
 
-        // Fast, safe, unblocked firestore fetch
-        let userDoc = null;
+        let userDoc;
         try {
           userDoc = await getDoc(doc(db, 'users', cred.user.uid));
-        } catch (fErr: any) {
-          console.warn('[Auth] Direct profile load failed or timed out:', fErr);
+        } catch (fErr) {
+          handleFirestoreError(fErr, OperationType.GET, `users/${cred.user.uid}`);
         }
 
-        const userData = userDoc?.exists() ? userDoc.data() : null;
-        const currentPhone = userData?.phone || userData?.phoneNumber || '';
+        const userData = userDoc.exists() ? userDoc.data() : null;
+        const phone = userData?.phone || userData?.phoneNumber || '';
 
         if (isAdmin) {
           try {
@@ -104,13 +94,10 @@ export const Auth = () => {
           return;
         }
 
-        if (currentPhone) {
-          if (!sessionStorage.getItem('loginEmailSent')) {
-            sendLoginEmail(userData?.name || cred.user.displayName || 'Customer', userEmail, currentPhone).catch(emailErr => {
-              console.error('[Email] Background sign-in email dispatch failed:', emailErr);
-            });
-            sessionStorage.setItem('loginEmailSent', 'true');
-          }
+        if (phone) {
+          sendLoginEmail(userData?.name || cred.user.displayName || 'Customer', userEmail, phone).catch(emailErr => {
+            console.error('[Email] Background sign-in email dispatch failed:', emailErr);
+          });
           const redirect = searchParams.get('redirect');
           if (redirect) {
             navigate(redirect.startsWith('/') ? redirect : `/${redirect}`);
@@ -118,15 +105,25 @@ export const Auth = () => {
             navigate('/');
           }
         } else {
-          // No phone number, will trigger PhoneNumberRequiredPage on navigation to home
           navigate('/');
         }
       } else {
+        // Enforce 10-digit phone number check prior to account creations
+        if (/[^\d]/.test(phone)) {
+          setError("Phone number must contain numbers only. No letters, spaces, or special characters allowed.");
+          setIsSubmitting(false);
+          return;
+        }
+        if (phone.length !== 10) {
+          setError(`Phone number must be exactly 10 digits. (You entered ${phone.length})`);
+          setIsSubmitting(false);
+          return;
+        }
+
         const cred = await createUserWithEmailAndPassword(auth, email, password);
         
         const userEmail = email.toLowerCase().trim();
         const isAdmin = userEmail === 'webhub2811@gmail.com' || userEmail === 'prime.elitestore02@gmail.com' || userEmail === 'primeelitestore02@gmail.com';
-        const formattedPhone = phone.replace(/[^\d]/g, '');
 
         if (isAdmin) {
           try {
@@ -147,79 +144,34 @@ export const Auth = () => {
             await setDoc(doc(db, 'users', cred.user.uid), {
               email: userEmail,
               name,
-              phoneNumber: formattedPhone,
-              phone: formattedPhone,
+              phoneNumber: phone,
+              phone: phone,
               phoneVerified: false,
               provider: 'email',
               role: 'customer',
-              profileCompleted: true, // Complete profile as phone is provided!
-              welcomeEmailSent: true,
+              profileCompleted: true,
               createdAt: new Date().toISOString()
             });
-
-            // Parse formatted human-readable current local timestamp
-            const signupDateString = new Date().toLocaleString('en-US', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit',
-              timeZoneName: 'short'
-            });
-
-            // Dispatch welcome signup email directly 
-            sendSignupEmail(name.trim(), userEmail, formattedPhone, signupDateString).catch(emailErr => {
-              console.error('[Email] Background signup email dispatch failed:', emailErr);
-            });
-
           } catch (fErr) {
             handleFirestoreError(fErr, OperationType.WRITE, `users/${cred.user.uid}`);
           }
-          
-          const redirect = searchParams.get('redirect');
-          if (redirect) {
-            navigate(redirect.startsWith('/') ? redirect : `/${redirect}`);
-          } else {
-            navigate('/products');
-          }
+          navigate('/');
         }
       }
     } catch (err: any) {
       console.error("Auth process error:", err);
       let displayMessage = err?.message || '';
-      const errorCode = err?.code || '';
-      
-      if (errorCode === 'auth/operation-not-allowed') {
-        displayMessage = "Email/Password sign-up is not enabled in your Firebase project yet.\n\nTo enable manual registration:\n1. Open your Firebase Console (console.firebase.google.com)\n2. Navigate to 'Authentication' > 'Sign-in method'\n3. Click 'Add new provider' and select 'Email/Password'\n4. Toggle 'Enable' and click 'Save'.";
-      } else if (errorCode === 'auth/invalid-credential' || errorCode === 'auth/user-not-found' || errorCode === 'auth/wrong-password' || displayMessage.includes('invalid-credential')) {
-        if (isLogin) {
-          displayMessage = "Incorrect email or password.\n\n• If you haven't created an account yet, please click the 'Create Account (Signup)' tab above first to register!\n• If you've already registered, please double-check your credentials or use the 'Forgot Password?' link below.";
-        } else {
-          displayMessage = "Manual registration (Sign-up) failed or was not accepted.\n\n• If you already registered this email, please click the 'Sign In (Login)' tab above to sign in.\n• Make sure you have entered a valid email format and a secure password.\n• If security features like reCAPTCHA Enterprise or Google App Check are active in your Firebase project, verify that your client environment domain is configured correctly.";
-        }
-      } else if (errorCode === 'auth/email-already-in-use') {
-        displayMessage = "This email is already registered.\n\nPlease choose the 'Sign In (Login)' tab above, or reset your password if you forgot it.";
-      } else if (errorCode === 'auth/weak-password') {
-        displayMessage = "The password is too weak. It must be at least 6 characters long.";
-      } else if (errorCode === 'auth/invalid-email') {
-        displayMessage = "The email address format is invalid. Please enter a valid email address.";
+      if (err?.code === 'auth/operation-not-allowed' || displayMessage.includes('auth/operation-not-allowed') || displayMessage.includes('operation-not-allowed')) {
+        displayMessage = "Email/Password sign-up is not enabled in your Firebase project yet.\n\nTo enable manual registration:\n1. Open your Firebase Console\n2. Go to 'Authentication' > 'Sign-in method'\n3. Click 'Add new provider'\n4. Select 'Email/Password', toggle 'Enable', and click 'Save'.";
       } else {
         try {
           if (displayMessage.startsWith('{')) {
             const parsed = JSON.parse(displayMessage);
-            displayMessage = parsed.error || 'Connection or Firestore issue.';
+            displayMessage = parsed.error || 'Firestore connection issue.';
           }
         } catch (_) {}
       }
-      
-      const isOfflineError = !navigator.onLine;
-      if (isOfflineError) {
-        displayMessage = "No internet connection. Please reconnect and try again.";
-      }
-      
-      setError(displayMessage || `Authentication error occurred (${errorCode || 'unknown'}). Please verify details and try again.`);
+      setError(displayMessage || 'Authentication failed. Please check your credentials.');
     } finally {
       setIsSubmitting(false);
     }
@@ -228,15 +180,15 @@ export const Auth = () => {
   const handleGoogleAuth = async () => {
     setError('');
     setIsSubmitting(true);
-
+    
     // Execute Google reCAPTCHA Enterprise
     const recaptchaToken = await executeRecaptcha('GOOGLE_LOGIN');
     if (recaptchaToken) {
       console.log('[reCAPTCHA] Token executed successfully for GOOGLE_LOGIN:', recaptchaToken);
     }
 
-    // Google Sign-In Provider - requesting public fields (no sensitive Calendar scope requested to bypass 'unverified app' warning)
     const provider = new GoogleAuthProvider();
+    // Google Calendar scope removed as requested
     try {
       const cred = await signInWithPopup(auth, provider);
       const credential = GoogleAuthProvider.credentialFromResult(cred);
@@ -247,12 +199,11 @@ export const Auth = () => {
       const userEmail = (cred.user.email || '').toLowerCase().trim();
       const isAdmin = userEmail === 'webhub2811@gmail.com' || userEmail === 'prime.elitestore02@gmail.com' || userEmail === 'primeelitestore02@gmail.com';
 
-      // Fast database fetch
-      let userDoc = null;
+      let userDoc;
       try {
         userDoc = await getDoc(doc(db, 'users', cred.user.uid));
-      } catch (fErr: any) {
-        console.warn('[Auth] Direct Google profile load failed or timed out:', fErr);
+      } catch (fErr) {
+        handleFirestoreError(fErr, OperationType.GET, `users/${cred.user.uid}`);
       }
       
       if (isAdmin) {
@@ -276,28 +227,25 @@ export const Auth = () => {
       let isCompleted = false;
       let phoneNum = '';
 
-      if (userDoc?.exists()) {
+      if (userDoc.exists()) {
         const userData = userDoc.data();
         phoneNum = userData?.phone || userData?.phoneNumber || '';
         isCompleted = userData?.profileCompleted || (!!phoneNum);
       }
 
       if (isCompleted && phoneNum) {
-        if (!sessionStorage.getItem('loginEmailSent')) {
-          sendLoginEmail(cred.user.displayName || 'Customer', userEmail, phoneNum).catch(emailErr => {
-            console.error('[Email] Background Google sign-in email dispatch failed:', emailErr);
-          });
-          sessionStorage.setItem('loginEmailSent', 'true');
-        }
+        sendLoginEmail(cred.user.displayName || 'Customer', userEmail, phoneNum).catch(emailErr => {
+          console.error('[Email] Background Google sign-in email dispatch failed:', emailErr);
+        });
         
         const redirect = searchParams.get('redirect');
         if (redirect) {
           navigate(redirect.startsWith('/') ? redirect : `/${redirect}`);
         } else {
-          navigate('/products');
+          navigate('/');
         }
       } else {
-        if (!userDoc?.exists()) {
+        if (!userDoc.exists()) {
           try {
             await setDoc(doc(db, 'users', cred.user.uid), {
               email: userEmail,
@@ -313,12 +261,7 @@ export const Auth = () => {
             handleFirestoreError(fErr, OperationType.CREATE, `users/${cred.user.uid}`);
           }
         }
-        const redirect = searchParams.get('redirect');
-        if (redirect) {
-          navigate(`/?redirect=${encodeURIComponent(redirect)}`);
-        } else {
-          navigate('/');
-        }
+        navigate('/');
       }
     } catch (err: any) {
       console.error("Google Auth error:", err);
@@ -333,12 +276,6 @@ export const Auth = () => {
           }
         } catch (_) {}
       }
-      
-      const isOfflineError = !navigator.onLine;
-      if (isOfflineError) {
-        displayMessage = "No internet connection. Please reconnect and try again.";
-      }
-
       setError(displayMessage || 'Google Authentication failed.');
     } finally {
       setIsSubmitting(false);
@@ -430,16 +367,14 @@ export const Auth = () => {
               <div>
                 <label className="block text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-2">Mobile Phone Number</label>
                 <input 
-                  type="tel" 
+                  type="text" 
                   placeholder="e.g. 9876543210" 
                   required
-                  value={phone}
-                  onChange={e => {
-                    const cleanValue = e.target.value.replace(/[^\d]/g, '');
-                    if (cleanValue.length <= 10) setPhone(cleanValue);
-                  }}
                   className="bg-black border border-white/10 p-4 rounded text-sm focus:border-gold-500/50 outline-none w-full text-white transition-all font-mono" 
+                  value={phone}
+                  onChange={e => setPhone(e.target.value)}
                 />
+                <span className="text-[10px] text-gray-500 mt-1 block">Exactly 10 digits, e.g. 9876543210</span>
               </div>
             </>
           )}

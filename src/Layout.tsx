@@ -4,7 +4,7 @@ import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { CinematicIntro } from './components/CinematicIntro';
 import { SocialFloats } from './components/SocialFloats';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldAlert, Lock, AlertCircle, X } from 'lucide-react';
 import { PhoneNumberRequiredPage } from './components/PhoneNumberRequiredPage';
 import { useAuthStore } from './store/authStore';
@@ -23,7 +23,7 @@ export const Layout = () => {
 
   const [loadAssistant, setLoadAssistant] = useState(false);
   
-  const isRestrictedRoute = ['/checkout'].some(route => location.pathname.startsWith(route));
+  const isRestrictedRoute = ['/products', '/checkout', '/cart'].some(route => location.pathname.startsWith(route));
 
   useEffect(() => {
     // Gracefully defer AI assistant chunk load logic to prevent network/CPU thrashing on initial load
@@ -65,7 +65,13 @@ export const Layout = () => {
     setSearchParams(newParams, { replace: true });
   };
 
-
+  if (!loading && user && !isCompliant) {
+    return (
+      <div className="flex flex-col min-h-screen bg-black">
+        <PhoneNumberRequiredPage />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-black">
@@ -121,8 +127,10 @@ export const Layout = () => {
 
       <Navbar />
       <main className="flex-1 w-full relative z-10 flex flex-col">
-        {!loading && user && !isCompliant ? (
-             <PhoneNumberRequiredPage />
+        {!loading && user && !isCompliant && isRestrictedRoute ? (
+             <div className="flex-1 flex items-center justify-center text-white p-6 text-center">
+                 Please complete your profile by adding your phone number to continue shopping.
+             </div>
         ) : (
              <Outlet />
         )}

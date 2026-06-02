@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { doc, setDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { Phone, User, Compass, LogOut } from 'lucide-react';
 import { sendSignupEmail } from '../utils/email';
 import { executeRecaptcha } from '../utils/recaptcha';
@@ -47,9 +47,8 @@ export const PhoneNumberRequiredPage = () => {
     }
 
     setLoading(true);
-
     try {
-      // Execute Google reCAPTCHA Enterprise with fast fallback
+      // Execute Google reCAPTCHA Enterprise
       const recaptchaToken = await executeRecaptcha('SIGNUP');
       if (recaptchaToken) {
         console.log('[reCAPTCHA] Verified human token successfully compiled on complete signup.');
@@ -70,39 +69,7 @@ export const PhoneNumberRequiredPage = () => {
         timeZoneName: 'short'
       });
 
-      // Try Google Calendar creation completely asynchronously as a background task to prevent any blocking/stalls
-      const accessToken = useAuthStore.getState().accessToken;
-      if (accessToken) {
-        const startISO = new Date().toISOString();
-        const endISO = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour duration
-        fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            summary: 'Prime Elite Store Membership Activated',
-            description: `Premium customer account at Prime Elite Store has been activated successfully under email: ${user.email}`,
-            start: {
-              dateTime: startISO,
-              timeZone: 'UTC'
-            },
-            end: {
-              dateTime: endISO,
-              timeZone: 'UTC'
-            }
-          })
-        }).then(calendarRes => {
-          if (calendarRes.ok) {
-            console.log('Google Calendar registration event created in the background.');
-          } else {
-            console.warn('Google Calendar registration event background log returned:', calendarRes.status);
-          }
-        }).catch(err => {
-          console.error('Failed to create background Google Calendar event:', err);
-        });
-      }
+      // Google Calendar event creation has been disabled as requested
 
       const updatedProfile = {
         uid: user.uid,
@@ -116,12 +83,11 @@ export const PhoneNumberRequiredPage = () => {
         createdAt: user.provider === 'google' ? new Date().toISOString() : (user.provider || new Date().toISOString())
       };
 
-      // 1. Write user profile securely and directly to firestore
+      // 1. Write user profile securely to firestore
       try {
         await setDoc(userRef, updatedProfile, { merge: true });
-      } catch (fErr: any) {
-        // If timed out or offline, we will still proceed locally so the user is not completely blocked
-        console.warn("Firestore save might have been delayed or offline:", fErr);
+      } catch (fErr) {
+        handleFirestoreError(fErr, OperationType.WRITE, `users/${user.uid}`);
       }
 
       // 2. Dispatch Welcome Email and Admin Notification Emails via EmailJS after Firestore save
@@ -141,15 +107,6 @@ export const PhoneNumberRequiredPage = () => {
         isCompliant: true,
         loading: false
       });
-      
-      // Navigate to correct destination (retaining cart or going to collection)
-      const urlParams = new URLSearchParams(window.location.search);
-      const redirect = urlParams.get('redirect');
-      if (redirect) {
-        window.location.href = redirect.startsWith('/') ? redirect : `/${redirect}`;
-      } else {
-        window.location.href = '/products';
-      }
 
     } catch (err: any) {
       console.error("Profile completion failed:", err);
@@ -222,10 +179,7 @@ export const PhoneNumberRequiredPage = () => {
                 required
                 disabled={loading}
                 value={phone}
-                onChange={(e) => {
-                  const cleanValue = e.target.value.replace(/[^\d]/g, '');
-                  if (cleanValue.length <= 10) setPhone(cleanValue);
-                }}
+                onChange={(e) => setPhone(e.target.value)}
                 className="w-full bg-zinc-900 border border-white/5 rounded pl-11 pr-4 py-3.5 text-white placeholder-zinc-700 focus:border-gold-500/40 outline-none transition-all font-mono text-sm"
               />
             </div>

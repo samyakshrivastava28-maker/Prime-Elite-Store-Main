@@ -4,12 +4,6 @@ import emailjsBrowser from '@emailjs/browser';
 const BACKEND_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '' : 'https://prime-elite-store-main.onrender.com');
 
 export const sendSignupEmail = async (userName: string, userEmail: string, userPhone: string = '', signupDate: string = '') => {
-  if (sessionStorage.getItem(`signupEmail_${userEmail}`)) {
-    console.log('[Email] Signup email already dispatched for this session.');
-    return;
-  }
-  sessionStorage.setItem(`signupEmail_${userEmail}`, 'true');
-
   try {
     const res = await fetch(`${BACKEND_URL}/api/email/signup`, {
       method: 'POST',
@@ -49,14 +43,10 @@ export const sendSignupEmail = async (userName: string, userEmail: string, userP
       signup_date: signupDate || new Date().toISOString(),
       admin_email: 'prime.elitestore02@gmail.com'
     };
-    
-    console.log('[Email] Sending Signup emails with payload:', params);
 
     await emailjsBrowser.send(serviceId, templateUser, params, pubKey);
-    console.log('[Welcome Email Sent]');
-    
     await emailjsBrowser.send(serviceId, templateAdmin, params, pubKey);
-    console.log('[Admin Signup Email Sent]');
+    console.log('[Email] Signup emails dispatched directly from browser.');
   } catch (err) {
     console.error('[Email] Direct browser signup dispatch failed:', err);
   }
@@ -100,14 +90,10 @@ export const sendLoginEmail = async (userName: string, userEmail: string, userPh
       user_phone_number: userPhone,
       admin_email: 'prime.elitestore02@gmail.com'
     };
-    
-    console.log('[Email] Sending Login emails with payload:', params);
 
     await emailjsBrowser.send(serviceId, templateUser, params, pubKey);
-    console.log('[Welcome Back Email Sent]');
-    
     await emailjsBrowser.send(serviceId, templateAdmin, params, pubKey);
-    console.log('[Admin Returning User Email Sent]');
+    console.log('[Email] Login emails dispatched directly from browser.');
   } catch (err) {
     console.error('[Email] Direct browser login dispatch failed:', err);
   }

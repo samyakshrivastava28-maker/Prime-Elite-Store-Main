@@ -3,8 +3,15 @@
  */
 export const executeRecaptcha = async (action: string = 'LOGIN'): Promise<string | null> => {
   return new Promise((resolve) => {
+    // 600ms safety timeout to make sure it NEVER blocks signup or login
+    const timeout = setTimeout(() => {
+      console.warn('[reCAPTCHA] Timeout reached. Continuing without blocking user...');
+      resolve(null);
+    }, 600);
+
     // Safely check if we are in browser environment and grecaptcha is loaded
     if (typeof window === 'undefined') {
+      clearTimeout(timeout);
       resolve(null);
       return;
     }
@@ -13,47 +20,29 @@ export const executeRecaptcha = async (action: string = 'LOGIN'): Promise<string
 
     if (!grecaptcha || !grecaptcha.enterprise) {
       console.warn('[reCAPTCHA] Google reCAPTCHA Enterprise script not loaded yet or unavailable in current screen state.');
+      clearTimeout(timeout);
       resolve(null);
       return;
     }
 
-    let isResolved = false;
-    const timeout = setTimeout(() => {
-      if (!isResolved) {
-        isResolved = true;
-        console.warn('[reCAPTCHA] Timeout exceeded (150ms) waiting for ready callback. Proceeding to prevent deadlock.');
-        resolve(null);
-      }
-    }, 150);
-
     try {
       grecaptcha.enterprise.ready(async () => {
-        if (isResolved) return;
         try {
           const siteKey = '6LcLYQUtAAAAAFYNuLxERzU9a7F1xr5gFb7r4Xi2';
           const token = await grecaptcha.enterprise.execute(siteKey, { action });
           console.log(`[reCAPTCHA] Token executed successfully for action ${action}:`, token);
-          if (!isResolved) {
-            isResolved = true;
-            clearTimeout(timeout);
-            resolve(token);
-          }
+          clearTimeout(timeout);
+          resolve(token);
         } catch (execErr) {
           console.error('[reCAPTCHA] Execution failure:', execErr);
-          if (!isResolved) {
-            isResolved = true;
-            clearTimeout(timeout);
-            resolve(null);
-          }
+          clearTimeout(timeout);
+          resolve(null);
         }
       });
     } catch (err) {
       console.error('[reCAPTCHA] Ready callback setup error:', err);
-      if (!isResolved) {
-        isResolved = true;
-        clearTimeout(timeout);
-        resolve(null);
-      }
+      clearTimeout(timeout);
+      resolve(null);
     }
   });
 };

@@ -1,7 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { 
-  getFirestore,
   initializeFirestore, 
   persistentLocalCache, 
   persistentMultipleTabManager, 
@@ -12,26 +11,36 @@ import {
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Ensure single-instance initialization of Firebase config in proper sequence
-const isNewApp = getApps().length === 0;
-const app = isNewApp ? initializeApp(firebaseConfig) : getApp();
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// Auth first, then Firestore.
+// Auth first, then Firestore. Pass the exact custom database ID from config
 export const auth = getAuth(app);
 
 // Enable robust native offline local persistence with robust try-catch fallback mechanism
+// Force memory cache inside iframe previews to prevent sandbox IndexedDB / third-party storage permission blocks
+const isInsideIframe = typeof window !== 'undefined' && (window.self !== window.top || window.location.search.includes('embed'));
+
 let cacheImplementation;
-try {
-  cacheImplementation = persistentLocalCache({
-    tabManager: persistentMultipleTabManager()
-  });
-} catch (e: any) {
-  console.warn('[Firebase Config] Offline persistence layer unavailable, falling back to clean memory-only buffer:', e.message);
+if (isInsideIframe) {
+  console.log('[Firebase Config] Running inside an iframe environment. Using memoryLocalCache to avoid sandboxed offline blocks.');
   cacheImplementation = memoryLocalCache();
+} else {
+  try {
+    cacheImplementation = persistentLocalCache({
+      tabManager: persistentMultipleTabManager()
+    });
+  } catch (e: any) {
+    console.warn('[Firebase Config] Offline persistence layer unavailable, falling back to clean memory-only buffer:', e.message);
+    cacheImplementation = memoryLocalCache();
+  }
 }
 
-export const db = isNewApp 
-  ? initializeFirestore(app, { localCache: cacheImplementation }, (firebaseConfig as any).firestoreDatabaseId)
-  : getFirestore(app, (firebaseConfig as any).firestoreDatabaseId);
+const firestoreDatabaseId = (firebaseConfig as any).firestoreDatabaseId || '(default)';
+console.log('[Firebase Initializer] Using Firestore database ID:', firestoreDatabaseId);
+
+export const db = initializeFirestore(app, {
+  localCache: cacheImplementation
+}, firestoreDatabaseId);
 
 // 14: Monitor and dispatch custom alerts for quota exceeds or database failures
 export const checkQuotaExceeded = (err: any): boolean => {

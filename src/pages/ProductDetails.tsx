@@ -7,12 +7,8 @@ import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
 import { useAppStore } from '../store/appStore';
 import { ShoppingBag, ChevronLeft, Star, Shield, Truck, Clock, Maximize2, X, ChevronRight } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { SEO } from '../components/SEO';
-import { optimizeCloudinaryUrl, getVideoPoster } from '../utils/cloudinary';
-import { ProductDetailSkeleton } from '../components/SkeletonLoader';
-import { useRecentsStore } from '../store/recentsStore';
-import { ProductRecommendations } from '../components/ProductRecommendations';
 
 export const ProductDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -22,16 +18,6 @@ export const ProductDetails = () => {
   // Media Gallery & Gallery History
   const [activeMedia, setActiveMedia] = useState<{ type: 'image' | 'video'; url: string } | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
-
-  // Dynamic Chosen Variant values
-  const chosenVariantObj = React.useMemo(() => {
-    if (!product || !product.variants) return null;
-    return product.variants.find(v => v.color === selectedVariant);
-  }, [product, selectedVariant]);
-
-  const currentPrice = chosenVariantObj?.price ?? (product?.price ?? 0);
-  const currentOldPrice = chosenVariantObj?.oldPrice ?? (product?.oldPrice ?? 0);
-  const currentStock = chosenVariantObj?.stock ?? (product?.stock ?? 0);
   
   // Interactive Zoom State (Amazon-style)
   const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 });
@@ -44,8 +30,6 @@ export const ProductDetails = () => {
   // Cinematic Lightbox Modal
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   
-  const addRecent = useRecentsStore(state => state.addRecent);
-  
   const addItem = useCartStore(state => state.addItem);
   const { user, loading: authLoading } = useAuthStore();
   const { products, initializeProductsListener } = useAppStore();
@@ -57,10 +41,13 @@ export const ProductDetails = () => {
     return () => unsubscribe();
   }, [initializeProductsListener]);
 
-  // Authentication guard removed for public evaluation
+  // Authentication guard
   useEffect(() => {
-    // Enable anyone to view products
-  }, []);
+    if (!authLoading && !user) {
+      alert("You can't see our collection without signup. Please create an account to view our premium items.");
+      navigate(`/login?redirect=products/${id}&mode=signup`);
+    }
+  }, [user, authLoading, navigate, id]);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -104,7 +91,6 @@ export const ProductDetails = () => {
         if (docSnap.exists()) {
           const data = { id: docSnap.id, ...docSnap.data() } as Product;
           setProductData(data);
-          addRecent(docSnap.id);
         }
       } catch (err: any) {
         checkQuotaExceeded(err);
@@ -114,12 +100,12 @@ export const ProductDetails = () => {
       }
     };
     fetchProduct();
-  }, [id, products, addRecent]);
+  }, [id, products]);
 
-  if (loading) {
+  if (authLoading || !user || loading) {
     return (
-      <div className="pt-32 min-h-screen px-6 max-w-7xl mx-auto">
-        <ProductDetailSkeleton />
+      <div className="pt-32 min-h-screen flex justify-center items-center">
+        <div className="animate-spin w-8 h-8 border-t-2 border-gold-500 rounded-full"></div>
       </div>
     );
   }
@@ -239,7 +225,7 @@ export const ProductDetails = () => {
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 1.05 }}
                     transition={{ duration: 0.3 }}
-                    src={optimizeCloudinaryUrl(activeMedia.url, { width: 1200, quality: 'auto' })} 
+                    src={activeMedia.url} 
                     alt={product.productName} 
                     style={isZoomed ? {
                       transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`,
@@ -253,7 +239,6 @@ export const ProductDetails = () => {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     src={activeMedia.url} 
-                    poster={getVideoPoster(activeMedia.url)}
                     autoPlay 
                     muted 
                     loop 
@@ -299,10 +284,10 @@ export const ProductDetails = () => {
                   className={`w-20 h-20 shrink-0 rounded-xl overflow-hidden border-2 relative transition-all ${activeMedia?.url === media.url ? 'border-gold-500 scale-102 shadow-[0_0_12px_rgba(212,175,55,0.4)]' : 'border-white/5 hover:border-white/30'}`}
                 >
                   {media.type === 'image' ? (
-                    <img src={optimizeCloudinaryUrl(media.url, { width: 200 })} alt={`${product.productName} view ${i}`} className="w-full h-full object-cover" />
+                    <img src={media.url} alt={`${product.productName} view ${i}`} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full relative bg-zinc-900">
-                      <video src={media.url} poster={getVideoPoster(media.url)} className="w-full h-full object-cover opacity-60" muted playsInline preload="metadata" />
+                      <video src={media.url} className="w-full h-full object-cover opacity-60" muted playsInline preload="metadata" />
                       <div className="absolute inset-0 flex items-center justify-center">
                         <div className="w-6 h-6 rounded-full bg-gold-500/80 flex items-center justify-center">
                           <div className="w-0 h-0 border-t-4 border-l-6 border-b-4 border-transparent border-l-black ml-0.5" />
@@ -342,9 +327,9 @@ export const ProductDetails = () => {
           </div>
 
           <div className="flex items-end gap-6 mb-8 border-b border-white/10 pb-8">
-            <div className="text-4xl font-bold text-white">₹{currentPrice.toLocaleString()}</div>
-            {currentOldPrice > 0 && (
-              <div className="text-xl text-gray-500 line-through mb-1">₹{currentOldPrice.toLocaleString()}</div>
+            <div className="text-4xl font-bold text-white">₹{product.price.toLocaleString()}</div>
+            {product.oldPrice > 0 && (
+              <div className="text-xl text-gray-500 line-through mb-1">₹{product.oldPrice.toLocaleString()}</div>
             )}
           </div>
 
@@ -371,7 +356,7 @@ export const ProductDetails = () => {
                       className={`group/btn w-16 h-16 rounded-full overflow-hidden border-2 transition-all p-0.5 relative flex items-center justify-center ${isSelected ? 'border-gold-500 scale-110 shadow-[0_0_15px_rgba(212,175,55,0.4)]' : 'border-white/10 hover:border-white/40 hover:scale-105'}`}
                       title={`Model Option ${i+1}`}
                     >
-                      <img src={optimizeCloudinaryUrl(variant.image, { width: 100 })} alt="Watch option" className="w-full h-full rounded-full object-cover" />
+                      <img src={variant.image} alt="Watch option" className="w-full h-full rounded-full object-cover" />
                       
                       {/* Premium indicator marker */}
                       {isSelected && (
@@ -454,22 +439,15 @@ export const ProductDetails = () => {
               onClick={() => {
                 const confirmed = window.confirm(`Do you want to add ${product.productName} to your cart?`);
                 if (confirmed) {
-                  addItem({ 
-                    ...product, 
-                    price: currentPrice,
-                    oldPrice: currentOldPrice,
-                    stock: currentStock,
-                    imageUrls: chosenVariantObj?.image ? [chosenVariantObj.image, ...(product.imageUrls || [])] : product.imageUrls,
-                    selectedColor: selectedVariant || '' 
-                  });
+                  addItem({ ...product, selectedColor: selectedVariant || '' });
                   alert(`${product.productName} ${selectedVariant ? `(${selectedVariant}) ` : ''}added to your selection successfully!`);
                 }
               }}
-              disabled={currentStock <= 0}
+              disabled={product.stock <= 0}
               className="flex-1 gold-gradient-bg text-black font-bold uppercase tracking-widest py-5 rounded-xl flex items-center justify-center gap-3 hover:scale-[1.01] transition-transform disabled:opacity-50 disabled:hover:scale-100"
             >
               <ShoppingBag size={20} />
-              {currentStock > 0 ? 'Place Order Selection' : 'Temporarily Out of Stock'}
+              {product.stock > 0 ? 'Place Order Selection' : 'Temporarily Out of Stock'}
             </button>
           </div>
           
@@ -478,10 +456,6 @@ export const ProductDetails = () => {
           </div>
 
         </div>
-      </div>
-
-      <div className="mt-32">
-        <ProductRecommendations currentProductId={product.id} currentCategory={product.category} />
       </div>
 
       {/* Fullscreen Luxury Lightbox Overlay Modal */}
@@ -533,7 +507,7 @@ export const ProductDetails = () => {
                     className={`w-14 h-14 shrink-0 rounded-lg overflow-hidden border-2 transition-all ${activeMedia?.url === m.url ? 'border-gold-500 scale-105' : 'border-white/10 hover:border-white/30'}`}
                   >
                     {m.type === 'image' ? (
-                      <img src={optimizeCloudinaryUrl(m.url, { width: 150 })} className="w-full h-full object-cover" />
+                      <img src={m.url} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
                         <div className="w-0 h-0 border-t-3 border-l-5 border-b-3 border-transparent border-l-gold-500" />
